@@ -72,6 +72,7 @@ const menuItems = {
     { id: 'settings', path: '/admin/settings', label: 'Settings', icon: 'settings' },
   ],
   librarian: [
+    { id: 'dashboard', path: '/librarian/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'library', path: '/librarian/library', label: 'Library Desk', icon: 'library' },
   ],
   hod: [

@@ -1,0 +1,24 @@
+Phase Zero: Project Setup & Foundation
+Phase One: Authentication & User Management (Role-based access, password reset, security)
+Phase Two: Student Portal Module (Dashboard, Attendance, Timetable, Assignments, Syllabus, Lab Manuals, Results, Leave)
+Phase Three: Faculty Module (Attendance marking, Assignment grading, Marks entry, Study materials)
+Phase Four: Fee Payment & Finance (Cashfree payment integration, fee structures, official CVM/ADIT PDF receipts)
+Phase Five: HOD & Department Module (Department analytics, subject allocation, leave approvals)
+Phase Six: Library Module (Book catalog, issue/return management, fine calculation)
+Phase Seven: Examination Module (Exam scheduling, unit tests, external marks, grade cards)
+Phase Eight: Administration Module (User controls, batch/course configuration, audit logs, system backups)
+Phase Nine: Integration & Production Deployment (Vite optimized build, backend API routing, database migration, and htdocs.zip distribution)
+
+
+
+uploded on github 
+
+git status
+git add -A
+git commit -m "Update CMS project - Upload all files"
+git push origin main
+
+git remote -v
+git branch
+
+git push origin master

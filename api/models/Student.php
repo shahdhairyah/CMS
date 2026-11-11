@@ -34,8 +34,77 @@ class Student extends Database {
     }
 
     public function findByRollNumber($rollNumber) {
-        $stmt = $this->db->prepare("SELECT * FROM students WHERE roll_number = ?");
+        $stmt = $this->db->prepare(
+            "SELECT s.*, u.email, d.name as department_name, d.code as department_code 
+             FROM students s 
+             LEFT JOIN users u ON s.user_id = u.id 
+             LEFT JOIN departments d ON s.department_id = d.id 
+             WHERE s.roll_number = ?"
+        );
         $stmt->execute([$rollNumber]);
+        return $stmt->fetch();
+    }
+
+    public function findByEmail($email) {
+        $stmt = $this->db->prepare(
+            "SELECT s.*, u.email, d.name as department_name, d.code as department_code 
+             FROM students s 
+             JOIN users u ON s.user_id = u.id 
+             LEFT JOIN departments d ON s.department_id = d.id 
+             WHERE u.email = ?"
+        );
+        $stmt->execute([$email]);
+        return $stmt->fetch();
+    }
+
+    public function findByAnyIdentifier($query) {
+        $query = trim($query);
+        if (empty($query)) return null;
+
+        // 1. Try by exact numeric student ID
+        if (is_numeric($query)) {
+            $s = $this->findById((int)$query);
+            if ($s) return $s;
+        }
+
+        // 2. Try by exact Roll Number
+        $s = $this->findByRollNumber($query);
+        if ($s) return $s;
+
+        // 3. Try by exact Email
+        $s = $this->findByEmail($query);
+        if ($s) return $s;
+
+        // 4. Try by partial / full name match or email match
+        $stmt = $this->db->prepare(
+            "SELECT s.*, u.email, d.name as department_name, d.code as department_code 
+             FROM students s 
+             LEFT JOIN users u ON s.user_id = u.id 
+             LEFT JOIN departments d ON s.department_id = d.id 
+             WHERE s.roll_number = ? 
+                OR u.email = ? 
+                OR CONCAT(s.first_name, ' ', s.last_name) = ?
+                OR s.first_name = ?
+                OR s.last_name = ?
+             LIMIT 1"
+        );
+        $stmt->execute([$query, $query, $query, $query, $query]);
+        $res = $stmt->fetch();
+        if ($res) return $res;
+
+        // 5. Fallback LIKE match
+        $stmt = $this->db->prepare(
+            "SELECT s.*, u.email, d.name as department_name, d.code as department_code 
+             FROM students s 
+             LEFT JOIN users u ON s.user_id = u.id 
+             LEFT JOIN departments d ON s.department_id = d.id 
+             WHERE s.roll_number LIKE ? 
+                OR u.email LIKE ? 
+                OR CONCAT(s.first_name, ' ', s.last_name) LIKE ?
+             LIMIT 1"
+        );
+        $like = "%{$query}%";
+        $stmt->execute([$like, $like, $like]);
         return $stmt->fetch();
     }
 
@@ -97,8 +166,10 @@ class Student extends Database {
             $params[] = $filters['user_id'];
         }
         if (!empty($filters['search'])) {
-            $where[] = "(s.first_name LIKE ? OR s.last_name LIKE ? OR s.roll_number LIKE ?)";
+            $where[] = "(s.first_name LIKE ? OR s.last_name LIKE ? OR s.roll_number LIKE ? OR u.email LIKE ? OR CONCAT(s.first_name, ' ', s.last_name) LIKE ?)";
             $search = "%{$filters['search']}%";
+            $params[] = $search;
+            $params[] = $search;
             $params[] = $search;
             $params[] = $search;
             $params[] = $search;
@@ -106,7 +177,7 @@ class Student extends Database {
 
         $whereClause = implode(' AND ', $where);
 
-        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM students s WHERE {$whereClause}");
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM students s LEFT JOIN users u ON s.user_id = u.id WHERE {$whereClause}");
         $countStmt->execute($params);
         $total = $countStmt->fetchColumn();
 
@@ -114,8 +185,9 @@ class Student extends Database {
         $params[] = $offset;
 
         $stmt = $this->db->prepare(
-            "SELECT s.*, d.name as department_name, d.code as department_code 
+            "SELECT s.*, u.email, d.name as department_name, d.code as department_code 
              FROM students s 
+             LEFT JOIN users u ON s.user_id = u.id 
              LEFT JOIN departments d ON s.department_id = d.id 
              WHERE {$whereClause} 
              ORDER BY s.roll_number ASC 

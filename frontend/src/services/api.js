@@ -230,9 +230,17 @@ export const feeAPI = {
 // LIBRARY
 export const libraryAPI = {
   getBooks: (params) => api.get('/library/books', { params }),
+  getCategories: () => api.get('/library/categories'),
+  getBookById: (id) => api.get(`/library/books/${id}`),
   addBook: (data) => api.post('/library/books', data),
+  updateBook: (id, data) => api.put(`/library/books/${id}`, data),
+  deleteBook: (id) => api.delete(`/library/books/${id}`),
   issueBook: (data) => api.post('/library/issue', data),
   returnBook: (data) => api.post('/library/return', data),
+  payFine: (data) => api.post('/library/pay-fine', data),
+  getAllIssues: (params) => api.get('/library/issues', { params }),
+  getStatistics: () => api.get('/library/statistics'),
+  getMyLoans: () => api.get('/library/my-loans'),
   getHistory: (studentId) => api.get(`/library/history/${studentId}`),
   getFines: (studentId) => api.get(`/library/fines/${studentId}`),
 };

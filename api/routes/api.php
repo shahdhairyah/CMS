@@ -99,7 +99,7 @@ $routes = [
     'DELETE /classrooms/([^/]+)'    => ['ClassroomController', 'destroy', true, ['admin']],
 
     // Student routes
-    'GET /students'                => ['StudentController', 'index', true, ['admin', 'hod', 'faculty']],
+    'GET /students'                => ['StudentController', 'index', true, ['admin', 'hod', 'faculty', 'librarian']],
     'POST /students/([^/]+)/photo' => ['StudentController', 'uploadPhoto', true],
     'GET /students/([^/]+)'        => ['StudentController', 'show', true],
     'POST /students'               => ['StudentController', 'store', true, ['admin']],
@@ -150,9 +150,16 @@ $routes = [
 
     // Library routes
     'GET /library/books'           => ['LibraryController', 'getBooks', true],
+    'GET /library/categories'      => ['LibraryController', 'getCategories', true],
+    'GET /library/statistics'      => ['LibraryController', 'getStatistics', true, ['admin', 'librarian']],
+    'GET /library/issues'          => ['LibraryController', 'getAllIssues', true, ['admin', 'librarian']],
+    'GET /library/my-loans'        => ['LibraryController', 'getMyLoans', true, ['student']],
     'POST /library/books'          => ['LibraryController', 'addBook', true, ['admin', 'librarian']],
+    'PUT /library/books/([^/]+)'   => ['LibraryController', 'updateBook', true, ['admin', 'librarian']],
+    'DELETE /library/books/([^/]+)'=> ['LibraryController', 'deleteBook', true, ['admin', 'librarian']],
     'POST /library/issue'          => ['LibraryController', 'issueBook', true, ['admin', 'librarian']],
     'POST /library/return'         => ['LibraryController', 'returnBook', true, ['admin', 'librarian']],
+    'POST /library/pay-fine'       => ['LibraryController', 'payFine', true, ['admin', 'librarian']],
     'GET /library/history/([^/]+)' => ['LibraryController', 'getHistory', true],
     'GET /library/fines/([^/]+)'   => ['LibraryController', 'getFines', true],
 

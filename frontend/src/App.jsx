@@ -23,6 +23,8 @@ import StudentLabManualDetail from './pages/student/StudentLabManualDetail';
 import StudentLabManualStatus from './pages/student/StudentLabManualStatus';
 import StudentTimetable from './pages/student/StudentTimetable';
 import StudentFees from './pages/student/StudentFees';
+import LibrarianDashboard from './pages/librarian/LibrarianDashboard';
+import AdminLibrary from './pages/admin/AdminLibrary';
 import StudentLibrary from './pages/student/StudentLibrary';
 import StudentProfile from './pages/student/StudentProfile';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
@@ -94,7 +96,9 @@ function App() {
             <Route path="/admin/timetable" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminTimetable /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/exams" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Examination Management" icon={ExamIcon} /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Notice Board" icon={NoticeIcon} /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/library" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Library Management" icon={LibraryIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/library" element={<ProtectedRoute allowedRoles={['admin', 'librarian']}><DashboardLayout><AdminLibrary /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/librarian/dashboard" element={<ProtectedRoute allowedRoles={['librarian', 'admin']}><DashboardLayout><LibrarianDashboard /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/librarian/library" element={<ProtectedRoute allowedRoles={['admin', 'librarian']}><DashboardLayout><AdminLibrary /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Reports" icon={ReportIcon} /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="System Settings" icon={SettingsIcon} /></DashboardLayout></ProtectedRoute>} />
 

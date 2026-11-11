@@ -1,30 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/common/PageHeader';
+import StatCard from '../../components/common/StatCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import {
-  BookOpen, SearchIcon, CalendarIcon, WarningIcon, CheckIcon, LibraryIcon, FeeIcon,
+  BookOpen, SearchIcon, CalendarIcon, WarningIcon, CheckIcon,
+  LibraryIcon, FeeIcon, RefreshIcon, ArrowRight
 } from '../../utils/icons';
 import { formatDate, formatCurrency } from '../../utils/helpers';
 import { libraryAPI } from '../../services/api';
 
-/**
- * A student's view of the library.
- *
- * Everything here comes from /library/my-loans, which identifies the student
- * from the token rather than from a route or query parameter. An earlier
- * version asked for ?id and trusted it, so any logged-in account could read
- * another student's borrowing record by changing the number.
- */
 export default function StudentLibrary() {
   const { user } = useAuth();
   const [books, setBooks] = useState([]);
-  const [active, setActive] = useState([]);
-  const [fines, setFines] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeLoans, setActiveLoans] = useState([]);
+  const [recentLoans, setRecentLoans] = useState([]);
+  const [finesList, setFinesList] = useState([]);
   const [totalFines, setTotalFines] = useState(0);
-  const [recent, setRecent] = useState([]);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'my_loans' | 'history'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -36,327 +33,433 @@ export default function StudentLibrary() {
     try {
       setLoading(true);
       setError('');
-      // The catalogue and the loans are independent; a failure on one should
-      // not blank out the other.
-      const [booksRes, loansRes] = await Promise.allSettled([
-        libraryAPI.getBooks(),
+
+      const [booksRes, loansRes, catsRes] = await Promise.allSettled([
+        libraryAPI.getBooks({ page_size: 100 }),
         libraryAPI.getMyLoans(),
+        libraryAPI.getCategories(),
       ]);
 
       if (booksRes.status === 'fulfilled' && booksRes.value?.success) {
-        setBooks(booksRes.value.data || []);
+        const data = booksRes.value.data;
+        setBooks(Array.isArray(data) ? data : (data.books || []));
       } else {
-        setError('Could not load the catalogue.');
+        setError('Could not load the library catalogue.');
       }
 
       if (loansRes.status === 'fulfilled' && loansRes.value?.success) {
         const data = loansRes.value.data || {};
-        setActive(data.active || []);
-        setFines(data.fines || []);
+        setActiveLoans(data.active || []);
+        setRecentLoans(data.recent || []);
+        setFinesList(data.fines || []);
         setTotalFines(Number(data.total_fines || 0));
-        setRecent(data.recent || []);
-      } else {
-        setError((prev) => prev || 'Could not load your library records.');
+      }
+
+      if (catsRes.status === 'fulfilled' && catsRes.value?.success) {
+        setCategories(catsRes.value.data || []);
       }
     } catch (err) {
-      setError(err?.message || 'Failed to load library data');
+      setError(err?.message || 'Failed to load library details');
     } finally {
       setLoading(false);
     }
   };
 
   const filteredBooks = useMemo(() => {
-    if (!search) return books;
-    const q = search.toLowerCase();
-    return books.filter((book) =>
-      [book.title, book.author, book.isbn, book.category]
-        .some((field) => (field || '').toLowerCase().includes(q))
-    );
-  }, [books, search]);
+    let list = books;
+    if (selectedCategory !== 'all') {
+      list = list.filter((b) => b.category === selectedCategory);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((b) =>
+        [b.title, b.author, b.isbn, b.publisher, b.category]
+          .some((f) => (f || '').toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [books, selectedCategory, search]);
 
-  // Loans the student has already taken out, so the catalogue can say
-  // "you have this" instead of offering the same copy twice.
-  const heldTitles = useMemo(
-    () => new Set(active.map((loan) => Number(loan.book_id))),
-    [active]
+  const heldBookIds = useMemo(
+    () => new Set(activeLoans.map((loan) => Number(loan.book_id))),
+    [activeLoans]
   );
 
-  // days_overdue is DATEDIFF(today, due_date), so it is negative while a loan
-  // is still within its period and positive once it is late.
-  const overdue = active.filter((loan) => Number(loan.is_overdue) === 1);
+  const overdueLoans = activeLoans.filter((loan) => Number(loan.is_overdue) === 1);
 
-  if (loading) return <LoadingSpinner size="lg" text="Loading library..." />;
+  if (loading) return <LoadingSpinner size="lg" text="Loading ADIT Central Library..." />;
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Library"
-        subtitle={`Browse the catalogue and track the books on your loan${user?.profile?.roll_number ? ` · ${user.profile.roll_number}` : ''}.`}
-      />
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title="Central Library & Knowledge Hub"
+          subtitle={`Explore digital catalog, track your issued books and monitor library fines · ${user?.profile?.roll_number || ''}`}
+        />
+        <button
+          onClick={loadData}
+          className="btn btn-secondary text-xs py-2 px-3.5 inline-flex items-center gap-1.5 self-start sm:self-auto"
+        >
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
+        </button>
+      </div>
 
+      {/* Global Alerts */}
       {error && (
-        <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl text-sm flex items-center justify-between gap-4">
+        <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl text-sm flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={loadData} className="text-xs font-medium shrink-0">Retry</button>
+          <button onClick={loadData} className="text-xs font-semibold underline ml-3">Retry</button>
         </div>
       )}
 
-      {(overdue.length > 0 || totalFines > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {overdue.length > 0 && (
-            <div className="bg-danger/10 border border-danger/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <WarningIcon size={20} className="text-danger shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-danger">
-                    {overdue.length} book{overdue.length > 1 ? 's are' : ' is'} overdue
-                  </p>
-                  <p className="text-xs text-muted mt-1">
-                    A fine accrues each day after the due date. Please return {overdue.length > 1 ? 'them' : 'it'} to the library desk.
-                  </p>
-                  <ul className="mt-2 space-y-1">
-                    {overdue.map((loan) => (
-                      <li key={loan.id} className="text-xs text-muted-light">
-                        {loan.book_title} · {Math.abs(Number(loan.days_overdue))} day(s) late
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {totalFines > 0 && (
-            <div className="bg-warning/10 border border-warning/20 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <FeeIcon size={20} className="text-warning shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-warning">
-                    {formatCurrency(totalFines)} in library fines
-                  </p>
-                  <p className="text-xs text-muted mt-1">
-                    Settle it at the library desk. A fine is charged per day after the due date.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ---------------------------------------------------- my loans */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-white flex items-center gap-2">
-            <LibraryIcon size={18} className="text-accent-light" /> Books On Loan
-          </h3>
-          <span className="text-xs text-muted">{active.length} issued</span>
-        </div>
-
-        {active.length === 0 ? (
-          <EmptyState
-            icon={<BookOpen size={32} />}
-            title="No Books Issued"
-            description="You are not currently holding any books. Ask at the library desk to borrow one."
-          />
-        ) : (
-          <div className="space-y-3">
-            {active.map((loan) => {
-              const late = Number(loan.is_overdue) === 1;
-              const days = Math.abs(Number(loan.days_overdue));
-              return (
-                <div
-                  key={loan.id}
-                  className={`p-4 bg-surface-overlay rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    late ? 'border-danger/30' : 'border-surface-border/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                      late ? 'bg-danger/10' : 'bg-accent/10'
-                    }`}>
-                      <BookOpen size={18} className={late ? 'text-danger' : 'text-accent-light'} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-muted-light truncate">{loan.book_title}</p>
-                      <p className="text-xs text-muted truncate">{loan.book_author}</p>
-                      <p className="text-xs text-muted mt-1 flex items-center gap-1.5">
-                        <CalendarIcon size={12} />
-                        Issued {formatDate(loan.issue_date)} · Due {formatDate(loan.due_date)}
-                      </p>
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${
-                    late
-                      ? 'bg-danger/10 text-danger'
-                      : days <= 2
-                        ? 'bg-warning/10 text-warning'
-                        : 'bg-success/10 text-success'
-                  }`}>
-                    {late ? `${days} day(s) overdue` : days === 0 ? 'Due today' : `${days} day(s) left`}
+      {/* Overdue Warning Alert Banner */}
+      {overdueLoans.length > 0 && (
+        <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
+          <div className="flex items-start gap-3">
+            <WarningIcon size={20} className="text-danger flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-danger">
+                {overdueLoans.length} Overdue Book{overdueLoans.length > 1 ? 's' : ''} Require Immediate Return
+              </h4>
+              <p className="text-xs text-muted mt-0.5">
+                Daily late fine of ₹5/day is actively calculated. Please return the following titles to the library circulation desk:
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {overdueLoans.map((l) => (
+                  <span
+                    key={l.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-raised border border-danger/25 text-xs text-white"
+                  >
+                    <span className="font-medium truncate max-w-[200px]">{l.title}</span>
+                    <span className="text-danger font-mono font-semibold">({l.days_overdue}d late)</span>
                   </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ------------------------------------------------------- fines */}
-      {fines.length > 0 && (
-        <div className="card">
-          <h3 className="text-base font-semibold text-white mb-1">Unsettled Fines</h3>
-          <p className="text-xs text-muted mb-5">Pay at the library desk to clear these.</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-surface-border text-muted text-xs uppercase tracking-wider">
-                  <th className="text-left py-3 pr-4">Book</th>
-                  <th className="text-left py-3 pr-4">Returned</th>
-                  <th className="text-center py-3 pr-4">Days Late</th>
-                  <th className="text-right py-3">Fine</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fines.map((fine) => (
-                  <tr key={fine.id} className="border-b border-surface-border/50 last:border-0">
-                    <td className="py-3.5 pr-4 text-muted-light">{fine.book_title}</td>
-                    <td className="py-3.5 pr-4 text-muted">{formatDate(fine.return_date)}</td>
-                    <td className="py-3.5 pr-4 text-center text-muted">{fine.days_overdue || 0}</td>
-                    <td className="py-3.5 text-right text-danger font-medium">
-                      {formatCurrency(fine.fine_amount)}
-                    </td>
-                  </tr>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ---------------------------------------------------- catalogue */}
-      <div className="card">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-          <h3 className="text-base font-semibold text-white">Catalogue</h3>
-          <div className="relative max-w-xs w-full">
-            <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-dark" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title, author, ISBN..."
-              className="w-full bg-surface-overlay border border-surface-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-muted-light focus:outline-none focus:border-accent/50"
-            />
-          </div>
-        </div>
-
-        {filteredBooks.length === 0 ? (
-          <EmptyState
-            icon={<SearchIcon size={32} />}
-            title="No Books Found"
-            description={search ? 'Try a different search term.' : 'No books are available in the library.'}
-          />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredBooks.map((book) => {
-              const available = Number(book.available_copies) > 0;
-              const held = heldTitles.has(Number(book.id));
-              return (
-                <div
-                  key={book.id}
-                  className="p-4 bg-surface-overlay rounded-xl border border-surface-border/50 hover:border-surface-border transition-colors flex flex-col"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <BookOpen size={18} className="text-accent-light" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm text-muted-light truncate">{book.title}</p>
-                      <p className="text-xs text-muted mt-0.5 truncate">
-                        {book.author || 'Unknown author'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-auto flex items-center justify-between gap-2 text-xs">
-                    <span className="text-muted-dark truncate">
-                      {book.isbn ? `ISBN ${book.isbn}` : book.category || ''}
-                    </span>
-                    {held ? (
-                      <span className="px-2 py-0.5 rounded bg-warning/10 text-warning font-medium flex items-center gap-1 shrink-0">
-                        <CheckIcon size={11} /> On loan
-                      </span>
-                    ) : (
-                      <span className={`px-2 py-0.5 rounded font-medium shrink-0 ${
-                        available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-                      }`}>
-                        {available ? `${book.available_copies} available` : 'Unavailable'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={<BookOpen size={22} />}
+          label="Catalogued Books"
+          value={books.length}
+          color="primary"
+          subtext="Available Titles"
+        />
+        <StatCard
+          icon={<LibraryIcon size={22} />}
+          label="Active Loans"
+          value={activeLoans.length}
+          color="accent"
+          subtext="Books in your possession"
+        />
+        <StatCard
+          icon={<WarningIcon size={22} />}
+          label="Overdue Books"
+          value={overdueLoans.length}
+          color={overdueLoans.length > 0 ? 'danger' : 'success'}
+          subtext={overdueLoans.length > 0 ? 'Requires immediate return' : 'All loans on time'}
+        />
+        <StatCard
+          icon={<FeeIcon size={22} />}
+          label="Outstanding Fine"
+          value={formatCurrency(totalFines)}
+          color={totalFines > 0 ? 'warning' : 'success'}
+          subtext={totalFines > 0 ? 'Payable at circulation desk' : 'Zero dues'}
+        />
       </div>
 
-      {/* ------------------------------------------------------ history */}
-      {recent.length > 0 && (
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-surface-border gap-2">
+        <button
+          onClick={() => setActiveTab('catalog')}
+          className={`py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'catalog'
+              ? 'border-accent text-accent-light'
+              : 'border-transparent text-muted hover:text-white'
+          }`}
+        >
+          <BookOpen size={15} />
+          <span>Browse Catalog ({filteredBooks.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('my_loans')}
+          className={`py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'my_loans'
+              ? 'border-accent text-accent-light'
+              : 'border-transparent text-muted hover:text-white'
+          }`}
+        >
+          <LibraryIcon size={15} />
+          <span>My Active Loans</span>
+          {activeLoans.length > 0 && (
+            <span className="badge badge-accent text-[10px] px-1.5 py-0.2">
+              {activeLoans.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'history'
+              ? 'border-accent text-accent-light'
+              : 'border-transparent text-muted hover:text-white'
+          }`}
+        >
+          <CalendarIcon size={15} />
+          <span>Borrowing History</span>
+        </button>
+      </div>
+
+      {/* ----------------- TAB 1: BROWSE CATALOG ----------------- */}
+      {activeTab === 'catalog' && (
+        <div className="space-y-4">
+          {/* Search & Category Filter Bar */}
+          <div className="card p-4">
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+              <div className="relative flex-1">
+                <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search books by title, author, ISBN or publisher..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="input pl-10 text-xs w-full"
+                />
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                <span className="text-xs text-muted whitespace-nowrap">Category:</span>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="input py-1.5 px-3 text-xs min-w-[150px]"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map((c) => (
+                    <option key={c.category} value={c.category}>
+                      {c.category} ({c.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Book Cards Grid */}
+          {filteredBooks.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="No Books Found"
+              description="No titles match your query. Try searching with different keywords."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredBooks.map((book) => {
+                const isHeldByMe = heldBookIds.has(Number(book.id));
+                const available = Number(book.available_copies) > 0;
+                return (
+                  <div
+                    key={book.id}
+                    className="card p-4 flex flex-col justify-between hover:border-surface-hover transition-all"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="badge badge-accent text-[10px] uppercase">
+                          {book.category || 'General'}
+                        </span>
+                        {isHeldByMe ? (
+                          <span className="badge badge-warning text-[10px] inline-flex items-center gap-1">
+                            <CheckIcon size={10} /> Currently on loan
+                          </span>
+                        ) : available ? (
+                          <span className="badge badge-success text-[10px]">
+                            {book.available_copies} available
+                          </span>
+                        ) : (
+                          <span className="badge badge-danger text-[10px]">
+                            Out of stock
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm font-semibold text-white line-clamp-2 leading-snug">
+                        {book.title}
+                      </h4>
+                      <p className="text-xs text-muted mt-1">by {book.author || 'Unknown Author'}</p>
+                      {book.publisher && (
+                        <p className="text-[11px] text-muted-dark mt-0.5">Publisher: {book.publisher}</p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-surface-border/50 flex items-center justify-between text-xs text-muted">
+                      <span className="font-mono text-[11px]">
+                        {book.isbn ? `ISBN: ${book.isbn}` : 'Ref: #' + book.id}
+                      </span>
+                      <span className="text-[11px]">
+                        Total Copies: <strong className="text-white">{book.total_copies}</strong>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ----------------- TAB 2: ACTIVE LOANS ----------------- */}
+      {activeTab === 'my_loans' && (
         <div className="card">
-          <h3 className="text-base font-semibold text-white mb-5">Borrowing History</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-surface-border text-muted text-xs uppercase tracking-wider">
-                  <th className="text-left py-3 pr-4">Book</th>
-                  <th className="text-left py-3 pr-4">Issued</th>
-                  <th className="text-left py-3 pr-4">Returned</th>
-                  <th className="text-right py-3 pr-4">Fine</th>
-                  <th className="text-center py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((loan) => {
-                  const late = Number(loan.is_overdue) === 1;
-                  const settled = loan.status === 'fine_paid' || loan.status === 'returned';
-                  return (
-                    <tr key={loan.id} className="border-b border-surface-border/50 last:border-0">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-white">Currently Issued Books</h3>
+              <p className="text-xs text-muted mt-0.5">Books issued to your student account from ADIT central library</p>
+            </div>
+            <span className="badge badge-accent text-xs">{activeLoans.length} Active</span>
+          </div>
+
+          {activeLoans.length === 0 ? (
+            <EmptyState
+              icon={LibraryIcon}
+              title="No Active Book Loans"
+              description="You have no books currently checked out. Visit the library circulation desk to borrow books."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-surface-border text-muted text-xs uppercase tracking-wider">
+                    <th className="text-left py-3 pr-4">Book Details</th>
+                    <th className="text-left py-3 pr-4">Issue Date</th>
+                    <th className="text-left py-3 pr-4">Due Date</th>
+                    <th className="text-right py-3 pr-4">Accrued Fine</th>
+                    <th className="text-center py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border/50">
+                  {activeLoans.map((loan) => {
+                    const isLate = Number(loan.is_overdue) === 1;
+                    const fineAmt = Number(loan.computed_fine || 0);
+                    return (
+                      <tr key={loan.id} className="hover:bg-surface-hover/30 transition-colors">
+                        <td className="py-3.5 pr-4">
+                          <p className="text-white font-medium text-xs sm:text-sm">{loan.title}</p>
+                          <p className="text-xs text-muted">by {loan.author} {loan.isbn ? `· ISBN: ${loan.isbn}` : ''}</p>
+                        </td>
+                        <td className="py-3.5 pr-4 text-muted text-xs">
+                          {formatDate(loan.issue_date)}
+                        </td>
+                        <td className="py-3.5 pr-4 text-xs">
+                          <span className={isLate ? 'text-danger font-semibold' : 'text-white'}>
+                            {formatDate(loan.due_date)}
+                          </span>
+                          {isLate && (
+                            <span className="block text-[11px] text-danger font-mono">
+                              ({loan.days_overdue} days overdue)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 pr-4 text-right font-mono font-semibold text-xs">
+                          {fineAmt > 0 ? (
+                            <span className="text-danger">{formatCurrency(fineAmt)}</span>
+                          ) : (
+                            <span className="text-success">₹ 0.00</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 text-center">
+                          {isLate ? (
+                            <span className="badge badge-danger text-xs inline-flex items-center gap-1">
+                              <WarningIcon size={12} /> Overdue
+                            </span>
+                          ) : (
+                            <span className="badge badge-success text-xs inline-flex items-center gap-1">
+                              <CheckIcon size={12} /> Active Loan
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ----------------- TAB 3: BORROWING HISTORY ----------------- */}
+      {activeTab === 'history' && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-white">Historical Circulation Ledger</h3>
+              <p className="text-xs text-muted mt-0.5">Records of previously borrowed and returned books</p>
+            </div>
+            <span className="text-xs text-muted-light font-mono">{recentLoans.length} Records</span>
+          </div>
+
+          {recentLoans.length === 0 ? (
+            <EmptyState
+              icon={CalendarIcon}
+              title="No Past Borrowing History"
+              description="Your completed loans and fine receipts will be archived here."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-surface-border text-muted text-xs uppercase tracking-wider">
+                    <th className="text-left py-3 pr-4">Book Title</th>
+                    <th className="text-left py-3 pr-4">Issue Date</th>
+                    <th className="text-left py-3 pr-4">Return Date</th>
+                    <th className="text-right py-3 pr-4">Paid / Settled Fine</th>
+                    <th className="text-center py-3">Closure Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border/50">
+                  {recentLoans.map((loan) => (
+                    <tr key={loan.id} className="hover:bg-surface-hover/30 transition-colors">
                       <td className="py-3.5 pr-4">
-                        <p className="text-muted-light">{loan.book_title}</p>
-                        <p className="text-xs text-muted">{loan.book_author}</p>
+                        <p className="text-white font-medium text-xs sm:text-sm">{loan.title}</p>
+                        <p className="text-xs text-muted">by {loan.author}</p>
                       </td>
-                      <td className="py-3.5 pr-4 text-muted">{formatDate(loan.issue_date)}</td>
-                      <td className="py-3.5 pr-4 text-muted">
+                      <td className="py-3.5 pr-4 text-muted text-xs">
+                        {formatDate(loan.issue_date)}
+                      </td>
+                      <td className="py-3.5 pr-4 text-muted text-xs">
                         {loan.return_date ? formatDate(loan.return_date) : '-'}
                       </td>
-                      <td className="py-3.5 pr-4 text-right text-muted">
-                        {Number(loan.fine_amount) > 0 ? formatCurrency(loan.fine_amount) : '-'}
+                      <td className="py-3.5 pr-4 text-right text-xs font-mono font-medium">
+                        {Number(loan.fine_amount) > 0 ? (
+                          <span className="text-warning">{formatCurrency(loan.fine_amount)}</span>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
                       </td>
                       <td className="py-3.5 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          late
-                            ? 'bg-danger/10 text-danger'
-                            : loan.status === 'fine_paid'
-                              ? 'bg-success/10 text-success'
-                              : settled
-                                ? 'bg-surface-hover text-muted'
-                                : 'bg-accent/10 text-accent-light'
-                        }`}>
-                          {late
-                            ? 'Overdue'
-                            : loan.status === 'fine_paid'
-                              ? 'Returned · fine paid'
+                        <span
+                          className={`badge text-xs ${
+                            loan.status === 'fine_paid'
+                              ? 'badge-success'
                               : loan.status === 'returned'
-                                ? 'Returned'
-                                : 'Issued'}
+                              ? 'badge-accent'
+                              : 'badge-muted'
+                          }`}
+                        >
+                          {loan.status === 'fine_paid' ? 'Returned · Fine Settled' : 'Returned'}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
