@@ -273,4 +273,29 @@ if ($resultsExists && $subjectsExists) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 5. Exam Schedules table
+// ---------------------------------------------------------------------------
+$log("\n5. Ensure exam_schedules table exists");
+$run("CREATE TABLE IF NOT EXISTS exam_schedules (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(150) NOT NULL,
+    exam_type ENUM('unit_test', 'mid_sem', 'final_external', 'practical', 'remedial') NOT NULL DEFAULT 'mid_sem',
+    semester_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    exam_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    room_number VARCHAR(50) DEFAULT 'Main Exam Hall',
+    max_marks DECIMAL(5,2) DEFAULT 70.00,
+    passing_marks DECIMAL(5,2) DEFAULT 28.00,
+    instructions TEXT,
+    status ENUM('scheduled', 'ongoing', 'completed', 'cancelled') DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    INDEX idx_exam_date (exam_date),
+    INDEX idx_semester_type (semester_id, exam_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 $log("\nDone." . ($dryRun ? ' (dry run)' : ''));

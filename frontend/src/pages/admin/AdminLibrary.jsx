@@ -315,24 +315,24 @@ export default function AdminLibrary() {
       {/* Summary KPI Strip */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <span className="text-[11px] text-muted uppercase font-semibold">Catalogue Titles</span>
             <p className="text-xl font-bold text-white mt-1">{stats.total_titles || 0}</p>
             <span className="text-[10px] text-muted">{stats.total_inventory || 0} total copies</span>
           </div>
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <span className="text-[11px] text-muted uppercase font-semibold">Active Loans</span>
             <p className="text-xl font-bold text-accent-light mt-1">{stats.active_loans || 0}</p>
             <span className="text-[10px] text-muted">{stats.available_books || 0} on shelf</span>
           </div>
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <span className="text-[11px] text-muted uppercase font-semibold">Overdue Returns</span>
             <p className={`text-xl font-bold mt-1 ${overdueCount > 0 ? 'text-danger' : 'text-success'}`}>
               {overdueCount}
             </p>
             <span className="text-[10px] text-muted">Late student loans</span>
           </div>
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <span className="text-[11px] text-muted uppercase font-semibold">Uncollected Fines</span>
             <p className="text-xl font-bold text-warning font-mono mt-1">
               {formatCurrency(stats.pending_fines || 0)}
@@ -371,7 +371,7 @@ export default function AdminLibrary() {
       {/* ----------------- TAB 1: CIRCULATION ----------------- */}
       {activeTab === 'circulation' && (
         <div className="space-y-4">
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
               <div className="relative flex-1">
                 <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -512,7 +512,7 @@ export default function AdminLibrary() {
       {/* ----------------- TAB 2: CATALOG ----------------- */}
       {activeTab === 'catalog' && (
         <div className="space-y-4">
-          <div className="card p-4">
+          <div className="bg-surface-raised border border-surface-border rounded-xl p-4 shadow">
             <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
               <div className="relative flex-1">
                 <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -635,7 +635,7 @@ export default function AdminLibrary() {
               <button onClick={() => setShowAddBookModal(false)} className="text-muted hover:text-white">&times;</button>
             </div>
             <form onSubmit={handleAddBook} className="space-y-3">
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
                 <label className="text-xs text-muted block mb-1">Book Title *</label>
                 <input
                   type="text"
@@ -646,7 +646,7 @@ export default function AdminLibrary() {
                   className="input text-xs w-full"
                 />
               </div>
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
                 <label className="text-xs text-muted block mb-1">Author *</label>
                 <input
                   type="text"
@@ -658,7 +658,7 @@ export default function AdminLibrary() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="grid md:grid-cols-2 gap-4">
                   <label className="text-xs text-muted block mb-1">ISBN</label>
                   <input
                     type="text"
@@ -668,7 +668,7 @@ export default function AdminLibrary() {
                     className="input text-xs w-full font-mono"
                   />
                 </div>
-                <div>
+                <div className="grid md:grid-cols-2 gap-4">
                   <label className="text-xs text-muted block mb-1">Total Copies</label>
                   <input
                     type="number"
@@ -681,7 +681,7 @@ export default function AdminLibrary() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="grid md:grid-cols-2 gap-4">
                   <label className="text-xs text-muted block mb-1">Category</label>
                   <input
                     type="text"
@@ -691,7 +691,7 @@ export default function AdminLibrary() {
                     className="input text-xs w-full"
                   />
                 </div>
-                <div>
+                <div className="grid md:grid-cols-2 gap-4">
                   <label className="text-xs text-muted block mb-1">Publisher</label>
                   <input
                     type="text"
@@ -729,7 +729,7 @@ export default function AdminLibrary() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-raised border border-surface-border rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
                 <h3 className="text-base font-semibold text-white">Issue Book to Student</h3>
                 <p className="text-xs text-muted mt-0.5">Find student by Name, Email, or Roll number</p>
               </div>
@@ -746,7 +746,7 @@ export default function AdminLibrary() {
 
             <form onSubmit={handleIssueBook} className="space-y-4">
               {/* Book Select */}
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
                 <label className="text-xs text-muted block mb-1">Select Book *</label>
                 <select
                   required
@@ -862,7 +862,7 @@ export default function AdminLibrary() {
               </div>
 
               {/* Loan Duration */}
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
                 <label className="text-xs text-muted block mb-1">Lending Duration (Days)</label>
                 <input
                   type="number"

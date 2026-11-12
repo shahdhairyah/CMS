@@ -471,4 +471,137 @@ class ExamController {
             Response::serverError('Failed to load student marks');
         }
     }
+
+    // =========================================================
+    // EXAM SCHEDULES & STATS ENDPOINTS
+    // =========================================================
+
+    public function getSchedules() {
+        try {
+            $filters = [];
+            if (!empty($_GET['semester_id'])) {
+                $filters['semester_id'] = Validation::id($_GET['semester_id']);
+            }
+            if (!empty($_GET['exam_type'])) {
+                $filters['exam_type'] = Validation::sanitize($_GET['exam_type']);
+            }
+            if (!empty($_GET['subject_id'])) {
+                $filters['subject_id'] = Validation::id($_GET['subject_id']);
+            }
+            if (!empty($_GET['status'])) {
+                $filters['status'] = Validation::sanitize($_GET['status']);
+            }
+
+            $schedules = $this->examModel->getSchedules($filters);
+            Response::success($schedules);
+        } catch (Exception $e) {
+            error_log("ExamController::getSchedules Error: " . $e->getMessage());
+            Response::serverError('Failed to load exam schedules');
+        }
+    }
+
+    public function getScheduleById($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid schedule ID', 400);
+            }
+            $schedule = $this->examModel->getScheduleById($id);
+            if (!$schedule) {
+                Response::notFound('Exam schedule not found');
+            }
+            Response::success($schedule);
+        } catch (Exception $e) {
+            error_log("ExamController::getScheduleById Error: " . $e->getMessage());
+            Response::serverError('Failed to load schedule');
+        }
+    }
+
+    public function createSchedule() {
+        try {
+            $data = Validation::getJsonInput();
+            if (empty($data['title']) || empty($data['semester_id']) || empty($data['subject_id']) || empty($data['exam_date']) || empty($data['start_time']) || empty($data['end_time'])) {
+                Response::validationError([
+                    'title' => 'Title is required',
+                    'semester_id' => 'Semester ID is required',
+                    'subject_id' => 'Subject ID is required',
+                    'exam_date' => 'Exam date is required',
+                    'start_time' => 'Start time is required',
+                    'end_time' => 'End time is required',
+                ]);
+            }
+
+            $id = $this->examModel->createSchedule($data);
+            Response::success(['id' => $id], 'Exam schedule created successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::createSchedule Error: " . $e->getMessage());
+            Response::serverError('Failed to create exam schedule');
+        }
+    }
+
+    public function updateSchedule($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid schedule ID', 400);
+            }
+            $data = Validation::getJsonInput();
+            $result = $this->examModel->updateSchedule($id, $data);
+            if (!$result) {
+                Response::error('Failed to update schedule or no changes made', 400);
+            }
+            Response::success(null, 'Exam schedule updated successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::updateSchedule Error: " . $e->getMessage());
+            Response::serverError('Failed to update exam schedule');
+        }
+    }
+
+    public function deleteSchedule($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid schedule ID', 400);
+            }
+            $this->examModel->deleteSchedule($id);
+            Response::success(null, 'Exam schedule deleted successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::deleteSchedule Error: " . $e->getMessage());
+            Response::serverError('Failed to delete schedule');
+        }
+    }
+
+    public function getExamStats() {
+        try {
+            $stats = $this->examModel->getExamStats();
+            Response::success($stats);
+        } catch (Exception $e) {
+            error_log("ExamController::getExamStats Error: " . $e->getMessage());
+            Response::serverError('Failed to load exam statistics');
+        }
+    }
+
+    public function getUnitTestsList() {
+        try {
+            $studentId = !empty($_GET['student_id']) ? Validation::id($_GET['student_id']) : null;
+            $subjectId = !empty($_GET['subject_id']) ? Validation::id($_GET['subject_id']) : null;
+            $marks = $this->examModel->getInternalMarks($studentId, $subjectId);
+            Response::success($marks);
+        } catch (Exception $e) {
+            error_log("ExamController::getUnitTestsList Error: " . $e->getMessage());
+            Response::serverError('Failed to load unit test marks');
+        }
+    }
+
+    public function getExternalMarksList() {
+        try {
+            $studentId = !empty($_GET['student_id']) ? Validation::id($_GET['student_id']) : null;
+            $subjectId = !empty($_GET['subject_id']) ? Validation::id($_GET['subject_id']) : null;
+            $marks = $this->examModel->getExternalMarks($studentId, $subjectId);
+            Response::success($marks);
+        } catch (Exception $e) {
+            error_log("ExamController::getExternalMarksList Error: " . $e->getMessage());
+            Response::serverError('Failed to load external marks');
+        }
+    }
 }

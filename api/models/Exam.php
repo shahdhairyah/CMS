@@ -460,4 +460,152 @@ class Exam extends Database {
             'semester_id' => $semesterId
         ];
     }
+
+    // =========================================================
+    // EXAM SCHEDULES (CRUD & FILTERS)
+    // =========================================================
+
+    public function getSchedules($filters = []) {
+        $where = ['1=1'];
+        $params = [];
+
+        if (!empty($filters['semester_id'])) {
+            $where[] = 'es.semester_id = ?';
+            $params[] = (int) $filters['semester_id'];
+        }
+        if (!empty($filters['exam_type'])) {
+            $where[] = 'es.exam_type = ?';
+            $params[] = $filters['exam_type'];
+        }
+        if (!empty($filters['subject_id'])) {
+            $where[] = 'es.subject_id = ?';
+            $params[] = (int) $filters['subject_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'es.status = ?';
+            $params[] = $filters['status'];
+        }
+
+        $whereClause = implode(' AND ', $where);
+
+        $stmt = $this->db->prepare(
+            "SELECT es.*, 
+                    sub.name as subject_name, sub.code as subject_code, sub.credits,
+                    sem.semester_number, c.name as course_name, d.name as department_name
+             FROM exam_schedules es
+             JOIN subjects sub ON es.subject_id = sub.id
+             JOIN semesters sem ON es.semester_id = sem.id
+             JOIN courses c ON sem.course_id = c.id
+             LEFT JOIN departments d ON c.department_id = d.id
+             WHERE {$whereClause}
+             ORDER BY es.exam_date ASC, es.start_time ASC"
+        );
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function getScheduleById($id) {
+        $stmt = $this->db->prepare(
+            "SELECT es.*, 
+                    sub.name as subject_name, sub.code as subject_code, sub.credits,
+                    sem.semester_number, c.name as course_name, d.name as department_name
+             FROM exam_schedules es
+             JOIN subjects sub ON es.subject_id = sub.id
+             JOIN semesters sem ON es.semester_id = sem.id
+             JOIN courses c ON sem.course_id = c.id
+             LEFT JOIN departments d ON c.department_id = d.id
+             WHERE es.id = ?
+             LIMIT 1"
+        );
+        $stmt->execute([(int) $id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public function createSchedule($data) {
+        $stmt = $this->db->prepare(
+            "INSERT INTO exam_schedules 
+                (title, exam_type, semester_id, subject_id, exam_date, start_time, end_time, room_number, max_marks, passing_marks, instructions, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $data['title'],
+            $data['exam_type'] ?? 'mid_sem',
+            $data['semester_id'],
+            $data['subject_id'],
+            $data['exam_date'],
+            $data['start_time'],
+            $data['end_time'],
+            $data['room_number'] ?? 'Main Exam Hall',
+            $data['max_marks'] ?? 70.00,
+            $data['passing_marks'] ?? 28.00,
+            $data['instructions'] ?? null,
+            $data['status'] ?? 'scheduled'
+        ]);
+        return $this->db->lastInsertId();
+    }
+
+    public function updateSchedule($id, $data) {
+        $fields = [];
+        $params = [];
+        $allowed = ['title', 'exam_type', 'semester_id', 'subject_id', 'exam_date', 'start_time', 'end_time', 'room_number', 'max_marks', 'passing_marks', 'instructions', 'status'];
+
+        foreach ($allowed as $key) {
+            if (array_key_exists($key, $data)) {
+                $fields[] = "`$key` = ?";
+                $params[] = $data[$key];
+            }
+        }
+
+        if (empty($fields)) return false;
+
+        $params[] = (int) $id;
+        $stmt = $this->db->prepare("UPDATE exam_schedules SET " . implode(', ', $fields) . " WHERE id = ?");
+        return $stmt->execute($params);
+    }
+
+    public function deleteSchedule($id) {
+        $stmt = $this->db->prepare("DELETE FROM exam_schedules WHERE id = ?");
+        return $stmt->execute([(int) $id]);
+    }
+
+    // Comprehensive Stats for Admin Exam Control Center
+    public function getExamStats() {
+        $totalSchedules = 0;
+        $upcomingSchedules = 0;
+        $completedExams = 0;
+        $totalUnitTests = 0;
+        $totalExternalMarks = 0;
+        $totalPublishedResults = 0;
+
+        try {
+            $stmt = $this->db->query("SELECT COUNT(*) FROM exam_schedules");
+            $totalSchedules = (int) $stmt->fetchColumn();
+
+            $stmt = $this->db->query("SELECT COUNT(*) FROM exam_schedules WHERE exam_date >= CURDATE() AND status != 'completed'");
+            $upcomingSchedules = (int) $stmt->fetchColumn();
+
+            $stmt = $this->db->query("SELECT COUNT(*) FROM exam_schedules WHERE status = 'completed' OR exam_date < CURDATE()");
+            $completedExams = (int) $stmt->fetchColumn();
+        } catch (Exception $e) {}
+
+        try {
+            $stmt = $this->db->query("SELECT COUNT(*) FROM unit_tests");
+            $totalUnitTests = (int) $stmt->fetchColumn();
+
+            $stmt = $this->db->query("SELECT COUNT(*) FROM external_marks");
+            $totalExternalMarks = (int) $stmt->fetchColumn();
+
+            $stmt = $this->db->query("SELECT COUNT(*) FROM results WHERE published_at IS NOT NULL");
+            $totalPublishedResults = (int) $stmt->fetchColumn();
+        } catch (Exception $e) {}
+
+        return [
+            'total_schedules' => $totalSchedules,
+            'upcoming_exams' => $upcomingSchedules,
+            'completed_exams' => $completedExams,
+            'unit_tests_entered' => $totalUnitTests,
+            'external_marks_entered' => $totalExternalMarks,
+            'published_results' => $totalPublishedResults
+        ];
+    }
 }

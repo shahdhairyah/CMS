@@ -159,6 +159,7 @@ export const departmentAPI = {
 // COURSES
 export const courseAPI = {
   getAll: (params) => api.get('/courses', { params }),
+  getSubjects: (params) => api.get('/courses/subjects', { params }),
 };
 
 // CLASSROOMS
@@ -180,6 +181,8 @@ export const studentAPI = {
 };
 
 // FACULTY
+
+// FACULTY
 export const facultyAPI = {
   getAll: (params) => api.get('/faculty', { params }),
   getById: (id) => api.get(`/faculty/${id}`),
@@ -189,6 +192,9 @@ export const facultyAPI = {
   getSubjects: () => api.get('/faculty/subjects'),
   getAssignedClasses: () => api.get('/faculty/assigned-classes'),
 };
+// Export the base api for other modules
+export { api };
+
 
 // ATTENDANCE
 export const attendanceAPI = {
@@ -247,12 +253,22 @@ export const libraryAPI = {
 
 // EXAMS
 export const examAPI = {
+  getStats: () => api.get('/exams/stats'),
+  getSchedules: (params) => api.get('/exams/schedules', { params }),
+  getScheduleById: (id) => api.get(`/exams/schedules/${id}`),
+  createSchedule: (data) => api.post('/exams/schedules', data),
+  updateSchedule: (id, data) => api.put(`/exams/schedules/${id}`, data),
+  deleteSchedule: (id) => api.delete(`/exams/schedules/${id}`),
+  getUnitTests: (params) => api.get('/exams/unit-tests', { params }),
+  getExternalMarksList: (params) => api.get('/exams/external-marks', { params }),
   enterInternalMarks: (data) => api.post('/exams/internal-marks', data),
   enterExternalMarks: (data) => api.post('/exams/external-marks', data),
   getResults: (params) => api.get('/exams/results', { params }),
   getHallTicket: (studentId) => api.get(`/exams/hall-ticket/${studentId}`),
   publishResults: (data) => api.post('/exams/publish-results', data),
   getStudentMarks: (params) => api.get('/exams/student-marks', { params }),
+  getPerformance: (params) => api.get('/exams/performance', { params }),
+  getAnalytics: (subjectId) => api.get(`/exams/analytics/${subjectId}`),
 };
 
 // TIMETABLE
@@ -277,9 +293,11 @@ export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getUsers: (params) => api.get('/admin/users', { params }),
   backup: () => api.post('/admin/backup'),
+  getBackups: () => api.get('/admin/backups'),
   getAuditLogs: (params) => api.get('/admin/audit-logs', { params }),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
+  getSystemInfo: () => api.get('/admin/system-info'),
 };
 
 // LEAVE APPLICATIONS

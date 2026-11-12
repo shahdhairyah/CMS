@@ -457,6 +457,31 @@ CREATE TABLE IF NOT EXISTS hall_tickets (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
+-- 21b. EXAM SCHEDULES
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS exam_schedules (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(150) NOT NULL,
+    exam_type ENUM('unit_test', 'mid_sem', 'final_external', 'practical', 'remedial') NOT NULL DEFAULT 'mid_sem',
+    semester_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    exam_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    room_number VARCHAR(50) DEFAULT 'Main Exam Hall',
+    max_marks DECIMAL(5,2) DEFAULT 70.00,
+    passing_marks DECIMAL(5,2) DEFAULT 28.00,
+    instructions TEXT,
+    status ENUM('scheduled', 'ongoing', 'completed', 'cancelled') DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    INDEX idx_exam_date (exam_date),
+    INDEX idx_semester_type (semester_id, exam_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- 22. TIMETABLE
 -- =====================================================
 
@@ -1046,15 +1071,29 @@ INSERT INTO syllabus (subject_id, unit_number, unit_title, topics, status, uploa
 -- =====================================================
 INSERT INTO system_settings (setting_key, setting_value, updated_by) VALUES
 ('college_name',                'A.D. Institute of Technology (ADIT)', 1),
-('college_address',             'ADIT Campus, Ahmedabad, Gujarat, India', 1),
-('college_phone',               '+91-79-23456789', 1),
-('college_email',               'info@adit.edu', 1),
+('college_address',             'ADIT Campus, New Vallabh Vidyanagar, Anand, Gujarat - 388121', 1),
+('college_phone',               '+91-2692-233680', 1),
+('college_email',               'principal@adit.ac.in', 1),
+('college_website',             'https://www.adit.ac.in', 1),
+('college_code',                'ADIT-001', 1),
+('principal_name',              'Dr. Vishal N. Singh', 1),
 ('academic_year',               '2026-27', 1),
+('current_semester_type',       'Even Semester', 1),
 ('min_attendance_percentage',   '75', 1),
+('passing_marks_percentage',    '40', 1),
+('grading_system',              '10-Point CGPA Scale', 1),
 ('library_fine_per_day',        '5', 1),
 ('max_books_issue',             '3', 1),
 ('book_issue_duration_days',    '14', 1),
-('razorpay_key_id',             'rzp_test_xxxxxxxxxxxx', 1);
+('razorpay_key_id',             'rzp_test_aditcms2026', 1),
+('currency_symbol',             '₹', 1),
+('fee_due_days_grace',          '15', 1),
+('enable_online_payment',       '1', 1),
+('enable_student_registrations','1', 1),
+('maintenance_mode',            '0', 1),
+('session_timeout_minutes',     '60', 1),
+('system_timezone',             'Asia/Kolkata', 1),
+('portal_notice_banner',        'Welcome to ADIT Academic Portal. Academic Term 2026-27 is now in progress.', 1);
 
 -- =====================================================
 -- LAB MANUALS  (Phase 2 - student lab manual flow)

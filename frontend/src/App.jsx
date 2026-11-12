@@ -25,6 +25,7 @@ import StudentTimetable from './pages/student/StudentTimetable';
 import StudentFees from './pages/student/StudentFees';
 import LibrarianDashboard from './pages/librarian/LibrarianDashboard';
 import AdminLibrary from './pages/admin/AdminLibrary';
+import AdminStudents from './pages/admin/AdminStudents';
 import StudentLibrary from './pages/student/StudentLibrary';
 import StudentProfile from './pages/student/StudentProfile';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
@@ -53,6 +54,7 @@ import HODTimetable from './pages/hod/HODTimetable';
 import HODReports from './pages/hod/HODReports';
 import PageHeader from './components/common/PageHeader';
 import { BookOpen, SettingsIcon, UsersIcon, FacultyIcon, FeeIcon, TimetableIcon, ExamIcon, NoticeIcon, LibraryIcon, ReportIcon, DepartmentIcon, AttendanceIcon, AssignmentIcon, MarksIcon, MaterialIcon, SubjectIcon } from './utils/icons';
+import AdminSettings from './pages/admin/AdminSettings';
 
 function PlaceholderPage({ title, description, icon: Icon }) {
   return (
@@ -89,7 +91,7 @@ function App() {
 
             {/* ========== ADMIN ROUTES ========== */}
             <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Student Management" description="Add, edit, and manage all students." icon={UsersIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminStudents /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/faculty" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminFaculty /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Department Management" icon={DepartmentIcon} /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/fees" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminFees /></DashboardLayout></ProtectedRoute>} />
@@ -100,7 +102,7 @@ function App() {
             <Route path="/librarian/dashboard" element={<ProtectedRoute allowedRoles={['librarian', 'admin']}><DashboardLayout><LibrarianDashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/librarian/library" element={<ProtectedRoute allowedRoles={['admin', 'librarian']}><DashboardLayout><AdminLibrary /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Reports" icon={ReportIcon} /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="System Settings" icon={SettingsIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminSettings /></DashboardLayout></ProtectedRoute>} />
 
             {/* ========== HOD ROUTES ========== */}
             <Route path="/hod/dashboard" element={<ProtectedRoute allowedRoles={['hod']}><DashboardLayout><HODDashboard /></DashboardLayout></ProtectedRoute>} />

@@ -255,14 +255,15 @@ class AdminController {
 
             $db = Database::getInstance()->getConnection();
 
-            // Only these keys exist in the seed, and getSettings() hands every
-            // row straight to the admin UI. Without an allowlist a typo (or a
-            // crafted request) silently created a new setting row that nothing
-            // else in the codebase ever reads.
             $allowed = [
                 'college_name', 'college_address', 'college_phone', 'college_email',
-                'academic_year', 'min_attendance_percentage', 'library_fine_per_day',
-                'max_books_issue',
+                'college_website', 'college_code', 'principal_name',
+                'academic_year', 'current_semester_type', 'min_attendance_percentage',
+                'passing_marks_percentage', 'grading_system',
+                'library_fine_per_day', 'max_books_issue', 'book_issue_duration_days',
+                'razorpay_key_id', 'currency_symbol', 'fee_due_days_grace', 'enable_online_payment',
+                'enable_student_registrations', 'maintenance_mode', 'session_timeout_minutes',
+                'system_timezone', 'portal_notice_banner'
             ];
 
             $unknown = array_diff(array_keys($data), $allowed);
@@ -272,9 +273,13 @@ class AdminController {
             $data = array_intersect_key($data, array_flip($allowed));
 
             $numeric = [
-                'min_attendance_percentage' => [0, 100],
-                'library_fine_per_day'      => [0, 100000],
-                'max_books_issue'           => [0, 50],
+                'min_attendance_percentage'   => [0, 100],
+                'passing_marks_percentage'    => [0, 100],
+                'library_fine_per_day'        => [0, 100000],
+                'max_books_issue'             => [0, 50],
+                'book_issue_duration_days'    => [1, 365],
+                'fee_due_days_grace'          => [0, 180],
+                'session_timeout_minutes'     => [5, 1440],
             ];
             foreach ($numeric as $key => [$min, $max]) {
                 if (!array_key_exists($key, $data) || $data[$key] === null) {
@@ -286,14 +291,29 @@ class AdminController {
                 }
                 $data[$key] = (string) (int) $value;
             }
-            foreach (['college_name', 'college_address', 'college_phone', 'college_email', 'academic_year'] as $key) {
+
+            $booleanFields = ['enable_online_payment', 'enable_student_registrations', 'maintenance_mode'];
+            foreach ($booleanFields as $bf) {
+                if (array_key_exists($bf, $data) && $data[$bf] !== null) {
+                    $data[$bf] = ($data[$bf] == 1 || $data[$bf] === '1' || $data[$bf] === true || $data[$bf] === 'true') ? '1' : '0';
+                }
+            }
+
+            $stringFields = [
+                'college_name', 'college_address', 'college_phone', 'college_email',
+                'college_website', 'college_code', 'principal_name',
+                'academic_year', 'current_semester_type', 'grading_system',
+                'razorpay_key_id', 'currency_symbol', 'system_timezone', 'portal_notice_banner'
+            ];
+            foreach ($stringFields as $key) {
                 if (array_key_exists($key, $data) && $data[$key] !== null) {
                     $data[$key] = trim((string) $data[$key]);
-                    if ($data[$key] === '' || strlen($data[$key]) > 255) {
-                        Response::error("Setting \"$key\" must be 1-255 characters", 400);
+                    if (strlen($data[$key]) > 1000) {
+                        Response::error("Setting \"$key\" exceeds maximum allowed length", 400);
                     }
                 }
             }
+
             if (array_key_exists('college_email', $data) && $data['college_email'] !== ''
                 && !filter_var($data['college_email'], FILTER_VALIDATE_EMAIL)) {
                 Response::error('Setting "college_email" must be a valid email address', 400);
@@ -326,10 +346,93 @@ class AdminController {
                 throw $e;
             }
 
-            Response::success(null, 'Settings updated successfully');
+            try {
+                $auditStmt = $db->prepare(
+                    "INSERT INTO audit_logs (user_id, action, table_name, record_id, ip_address, created_at)
+                     VALUES (?, 'UPDATE_SETTINGS', 'system_settings', NULL, ?, NOW())"
+                );
+                $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+                $auditStmt->execute([$userId, $ip]);
+            } catch (Throwable $ignore) {}
+
+            Response::success(null, 'System settings updated successfully');
         } catch (Throwable $e) {
             error_log('AdminController::updateSettings Error: ' . $e->getMessage());
             Response::serverError('Failed to update settings');
+        }
+    }
+
+    public function getBackups() {
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare(
+                "SELECT b.*, u.email AS created_by_email, u.role AS created_by_role
+                 FROM system_backups b
+                 LEFT JOIN users u ON b.created_by = u.id
+                 ORDER BY b.created_at DESC
+                 LIMIT 50"
+            );
+            $stmt->execute();
+            $backups = $stmt->fetchAll();
+            Response::success($backups ?: []);
+        } catch (Throwable $e) {
+            error_log('AdminController::getBackups Error: ' . $e->getMessage());
+            Response::serverError('Failed to load backups');
+        }
+    }
+
+    public function getSystemInfo() {
+        try {
+            $db = Database::getInstance()->getConnection();
+            $serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? 'PHP CLI / Built-in Server';
+            $phpVersion = PHP_VERSION;
+            $dbVersion = 'MySQL 8.0';
+            try {
+                $dbVersion = $db->query('SELECT VERSION()')->fetchColumn();
+            } catch (Throwable $e) {}
+
+            // Counts
+            $studentCount = 0;
+            $facultyCount = 0;
+            $userCount = 0;
+            $deptCount = 0;
+            $courseCount = 0;
+            $auditCount = 0;
+            $backupCount = 0;
+
+            try { $studentCount = (int) $db->query('SELECT COUNT(*) FROM students')->fetchColumn(); } catch (Throwable $e) {}
+            try { $facultyCount = (int) $db->query('SELECT COUNT(*) FROM faculty')->fetchColumn(); } catch (Throwable $e) {}
+            try { $userCount = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(); } catch (Throwable $e) {}
+            try { $deptCount = (int) $db->query('SELECT COUNT(*) FROM departments')->fetchColumn(); } catch (Throwable $e) {}
+            try { $courseCount = (int) $db->query('SELECT COUNT(*) FROM courses')->fetchColumn(); } catch (Throwable $e) {}
+            try { $auditCount = (int) $db->query('SELECT COUNT(*) FROM audit_logs')->fetchColumn(); } catch (Throwable $e) {}
+            try { $backupCount = (int) $db->query('SELECT COUNT(*) FROM system_backups')->fetchColumn(); } catch (Throwable $e) {}
+
+            $info = [
+                'php_version' => $phpVersion,
+                'mysql_version' => $dbVersion,
+                'server_software' => $serverSoftware,
+                'os' => PHP_OS,
+                'server_time' => date('Y-m-d H:i:s T'),
+                'timezone' => date_default_timezone_get(),
+                'upload_max_filesize' => ini_get('upload_max_filesize') ?: '64M',
+                'post_max_size' => ini_get('post_max_size') ?: '64M',
+                'memory_limit' => ini_get('memory_limit') ?: '256M',
+                'max_execution_time' => (ini_get('max_execution_time') ?: '30') . 's',
+                'counts' => [
+                    'students' => $studentCount,
+                    'faculty' => $facultyCount,
+                    'users' => $userCount,
+                    'departments' => $deptCount,
+                    'courses' => $courseCount,
+                    'audit_logs' => $auditCount,
+                    'backups' => $backupCount,
+                ]
+            ];
+            Response::success($info);
+        } catch (Throwable $e) {
+            error_log('AdminController::getSystemInfo Error: ' . $e->getMessage());
+            Response::serverError('Failed to load system info');
         }
     }
 

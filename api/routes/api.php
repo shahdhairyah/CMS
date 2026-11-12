@@ -169,13 +169,21 @@ $routes = [
     'PUT /marks/internal/([^/]+)'     => ['ExamController', 'updateInternalMarks', true, ['faculty', 'admin']],
 
     // Exam routes
+    'GET /exams/stats'                => ['ExamController', 'getExamStats', true, ['admin', 'faculty', 'hod']],
+    'GET /exams/schedules'            => ['ExamController', 'getSchedules', true],
+    'GET /exams/schedules/([^/]+)'    => ['ExamController', 'getScheduleById', true],
+    'POST /exams/schedules'           => ['ExamController', 'createSchedule', true, ['admin']],
+    'PUT /exams/schedules/([^/]+)'    => ['ExamController', 'updateSchedule', true, ['admin']],
+    'DELETE /exams/schedules/([^/]+)' => ['ExamController', 'deleteSchedule', true, ['admin']],
+    'GET /exams/unit-tests'           => ['ExamController', 'getUnitTestsList', true, ['admin', 'faculty', 'hod']],
+    'GET /exams/external-marks'       => ['ExamController', 'getExternalMarksList', true, ['admin', 'faculty', 'hod']],
     'POST /exams/internal-marks'      => ['ExamController', 'enterInternalMarks', true, ['faculty', 'admin']],
     'POST /exams/external-marks'      => ['ExamController', 'enterExternalMarks', true, ['admin', 'faculty']],
     'GET /exams/results'              => ['ExamController', 'getResults', true],
     'GET /exams/performance'          => ['ExamController', 'getClassPerformance', true, ['faculty', 'hod', 'admin']],
     'GET /exams/hall-ticket/([^/]+)'  => ['ExamController', 'getHallTicket', true, ['student', 'admin']],
     'POST /exams/publish-results'     => ['ExamController', 'publishResults', true, ['admin']],
-    'GET /exams/analytics/([^/]+)' => ['ExamController', 'getPerformanceAnalytics', true, ['faculty', 'hod', 'admin']],
+    'GET /exams/analytics/([^/]+)'    => ['ExamController', 'getPerformanceAnalytics', true, ['faculty', 'hod', 'admin']],
 
     // Timetable routes
     'GET /timetable'               => ['TimetableController', 'index', true],
@@ -267,6 +275,8 @@ $routes = [
     'GET /admin/audit-logs'        => ['AdminController', 'getAuditLogs', true, ['admin']],
     'GET /admin/settings'          => ['AdminController', 'getSettings', true, ['admin']],
     'PUT /admin/settings'          => ['AdminController', 'updateSettings', true, ['admin']],
+    'GET /admin/backups'           => ['AdminController', 'getBackups', true, ['admin']],
+    'GET /admin/system-info'       => ['AdminController', 'getSystemInfo', true, ['admin']],
 ];
 
 // Match the route
