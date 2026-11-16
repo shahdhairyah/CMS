@@ -1,82 +1,70 @@
+import { lazy, Suspense } from 'react';
+import LoadingSpinner from './components/common/LoadingSpinner';
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminDepartments = lazy(() => import('./pages/admin/AdminDepartments'));
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import DashboardLayout from './components/layout/DashboardLayout';
-import LoginPage from './pages/auth/LoginPage';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import ChangePasswordPage from './pages/auth/ChangePasswordPage';
-import RegisterPage from './pages/auth/RegisterPage';
-import ContactPage from './pages/ContactPage';
-import HomePage from './pages/HomePage';
-import StudentDashboard from './pages/student/StudentDashboard';
-import StudentAttendance from './pages/student/StudentAttendance';
-import StudentAssignments from './pages/student/StudentAssignments';
-import StudentAssignmentDetail from './pages/student/StudentAssignmentDetail';
-import StudentNotices from './pages/student/StudentNotices';
-import StudentLeave from './pages/student/StudentLeave';
-import StudentResults from './pages/student/StudentResults';
-import StudentSyllabus from './pages/student/StudentSyllabus';
-import StudentLabManualList from './pages/student/StudentLabManualList';
-import StudentLabManualDetail from './pages/student/StudentLabManualDetail';
-import StudentLabManualStatus from './pages/student/StudentLabManualStatus';
-import StudentTimetable from './pages/student/StudentTimetable';
-import StudentFees from './pages/student/StudentFees';
-import LibrarianDashboard from './pages/librarian/LibrarianDashboard';
-import AdminLibrary from './pages/admin/AdminLibrary';
-import AdminStudents from './pages/admin/AdminStudents';
-import StudentLibrary from './pages/student/StudentLibrary';
-import StudentProfile from './pages/student/StudentProfile';
-import FacultyDashboard from './pages/faculty/FacultyDashboard';
-import FacultyAttendance from './pages/faculty/FacultyAttendance';
-import FacultyAssignments from './pages/faculty/FacultyAssignments';
-import FacultyMaterials from './pages/faculty/FacultyMaterials';
-import FacultyMarks from './pages/faculty/FacultyMarks';
-import FacultyNotices from './pages/faculty/FacultyNotices';
-import FacultyAttendanceReports from './pages/faculty/FacultyAttendanceReports';
-import FacultyAnnouncements from './pages/faculty/FacultyAnnouncements';
-import FacultyLabManuals from './pages/faculty/FacultyLabManuals';
-import FacultyLeave from './pages/faculty/FacultyLeave';
-import FacultyProfile from './pages/faculty/FacultyProfile';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminFees from './pages/admin/AdminFees';
-import AdminTimetable from './pages/admin/AdminTimetable';
-import AdminFaculty from './pages/admin/AdminFaculty';
-import HODDashboard from './pages/hod/HODDashboard';
-import HODStudents from './pages/hod/HODStudents';
-import HODFaculty from './pages/hod/HODFaculty';
-import HODSubjects from './pages/hod/HODSubjects';
-import HODFeeReport from './pages/hod/HODFeeReport';
-import HODLeave from './pages/hod/HODLeave';
-import HODClassrooms from './pages/hod/HODClassrooms';
-import HODTimetable from './pages/hod/HODTimetable';
-import HODReports from './pages/hod/HODReports';
-import PageHeader from './components/common/PageHeader';
-import { BookOpen, SettingsIcon, UsersIcon, FacultyIcon, FeeIcon, TimetableIcon, ExamIcon, NoticeIcon, LibraryIcon, ReportIcon, DepartmentIcon, AttendanceIcon, AssignmentIcon, MarksIcon, MaterialIcon, SubjectIcon } from './utils/icons';
-import AdminSettings from './pages/admin/AdminSettings';
-
-function PlaceholderPage({ title, description, icon: Icon }) {
-  return (
-    <div>
-      <PageHeader title={title} subtitle={description || 'This page is under development.'} />
-      <div className="card flex flex-col items-center justify-center py-20">
-        <div className="w-20 h-20 rounded-2xl bg-surface-overlay border border-surface-border flex items-center justify-center mb-5 text-muted-dark">
-          {Icon ? <Icon size={36} /> : <BookOpen size={36} />}
-        </div>
-        <h2 className="text-xl font-semibold text-muted-light mb-2">{title}</h2>
-        <p className="text-muted text-sm">Coming soon in the next phase.</p>
-      </div>
-    </div>
-  );
-}
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
+const ChangePasswordPage = lazy(() => import('./pages/auth/ChangePasswordPage'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
+const StudentAttendance = lazy(() => import('./pages/student/StudentAttendance'));
+const StudentAssignments = lazy(() => import('./pages/student/StudentAssignments'));
+const StudentAssignmentDetail = lazy(() => import('./pages/student/StudentAssignmentDetail'));
+const StudentNotices = lazy(() => import('./pages/student/StudentNotices'));
+const StudentLeave = lazy(() => import('./pages/student/StudentLeave'));
+const StudentResults = lazy(() => import('./pages/student/StudentResults'));
+const StudentSyllabus = lazy(() => import('./pages/student/StudentSyllabus'));
+const StudentLabManualList = lazy(() => import('./pages/student/StudentLabManualList'));
+const StudentLabManualDetail = lazy(() => import('./pages/student/StudentLabManualDetail'));
+const StudentLabManualStatus = lazy(() => import('./pages/student/StudentLabManualStatus'));
+const StudentTimetable = lazy(() => import('./pages/student/StudentTimetable'));
+const StudentFees = lazy(() => import('./pages/student/StudentFees'));
+const LibrarianDashboard = lazy(() => import('./pages/librarian/LibrarianDashboard'));
+const AdminLibrary = lazy(() => import('./pages/admin/AdminLibrary'));
+const AdminStudents = lazy(() => import('./pages/admin/AdminStudents'));
+const StudentLibrary = lazy(() => import('./pages/student/StudentLibrary'));
+const StudentProfile = lazy(() => import('./pages/student/StudentProfile'));
+const FacultyDashboard = lazy(() => import('./pages/faculty/FacultyDashboard'));
+const FacultyAttendance = lazy(() => import('./pages/faculty/FacultyAttendance'));
+const FacultyAssignments = lazy(() => import('./pages/faculty/FacultyAssignments'));
+const FacultyMaterials = lazy(() => import('./pages/faculty/FacultyMaterials'));
+const FacultyMarks = lazy(() => import('./pages/faculty/FacultyMarks'));
+const FacultyNotices = lazy(() => import('./pages/faculty/FacultyNotices'));
+const FacultyAttendanceReports = lazy(() => import('./pages/faculty/FacultyAttendanceReports'));
+const FacultyAnnouncements = lazy(() => import('./pages/faculty/FacultyAnnouncements'));
+const FacultyLabManuals = lazy(() => import('./pages/faculty/FacultyLabManuals'));
+const FacultyLeave = lazy(() => import('./pages/faculty/FacultyLeave'));
+const FacultyProfile = lazy(() => import('./pages/faculty/FacultyProfile'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminFees = lazy(() => import('./pages/admin/AdminFees'));
+const AdminTimetable = lazy(() => import('./pages/admin/AdminTimetable'));
+const AdminFaculty = lazy(() => import('./pages/admin/AdminFaculty'));
+const HODDashboard = lazy(() => import('./pages/hod/HODDashboard'));
+const HODStudents = lazy(() => import('./pages/hod/HODStudents'));
+const HODFaculty = lazy(() => import('./pages/hod/HODFaculty'));
+const HODSubjects = lazy(() => import('./pages/hod/HODSubjects'));
+const HODFeeReport = lazy(() => import('./pages/hod/HODFeeReport'));
+const HODLeave = lazy(() => import('./pages/hod/HODLeave'));
+const HODClassrooms = lazy(() => import('./pages/hod/HODClassrooms'));
+const HODTimetable = lazy(() => import('./pages/hod/HODTimetable'));
+const HODReports = lazy(() => import('./pages/hod/HODReports'));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports'));
+const AdminExams = lazy(() => import('./pages/admin/AdminExams'));
 
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <Routes>
+          <Suspense fallback={<LoadingSpinner text="Loading page..." />}><Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -93,15 +81,15 @@ function App() {
             <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminStudents /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/faculty" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminFaculty /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Department Management" icon={DepartmentIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDepartments /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/fees" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminFees /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/timetable" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminTimetable /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/exams" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Examination Management" icon={ExamIcon} /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Notice Board" icon={NoticeIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/exams" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminExams /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><FacultyNotices /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/library" element={<ProtectedRoute allowedRoles={['admin', 'librarian']}><DashboardLayout><AdminLibrary /></DashboardLayout></ProtectedRoute>} />
             <Route path="/librarian/dashboard" element={<ProtectedRoute allowedRoles={['librarian', 'admin']}><DashboardLayout><LibrarianDashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/librarian/library" element={<ProtectedRoute allowedRoles={['admin', 'librarian']}><DashboardLayout><AdminLibrary /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><PlaceholderPage title="Reports" icon={ReportIcon} /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminReports /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminSettings /></DashboardLayout></ProtectedRoute>} />
 
             {/* ========== HOD ROUTES ========== */}
@@ -148,7 +136,7 @@ function App() {
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          </Routes></Suspense>
         </Router>
       </AuthProvider>
     </ErrorBoundary>

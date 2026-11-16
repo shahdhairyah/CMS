@@ -46,13 +46,13 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 if (!$uri) $uri = '/';
 
 // Remove /api prefix and any trailing slashes
-$uri = preg_replace('#^/api#', '', $uri);
+$uri = preg_replace('#^/api(?=/|$)#', '', $uri);
 $uri = rtrim($uri, '/');
 if (empty($uri)) $uri = '/';
 
 // Fallback: if URI still contains index.php, extract the path after it
-if (strpos($uri, 'index.php') !== false) {
-    $uri = preg_replace('#.*index\.php#', '', $uri);
+if (preg_match('#^/(?:index|router)\.php(?:/|$)#', $uri)) {
+    $uri = preg_replace('#^/(?:index|router)\.php#', '', $uri);
     $uri = rtrim($uri, '/');
     if (empty($uri)) $uri = '/';
 }

@@ -44,7 +44,7 @@ export default function AdminStudents() {
     try {
       setLoading(true);
       setError('');
-      const [deptRes, studentsRes] = await Promise.all([
+      const [deptRes] = await Promise.all([
         departmentAPI.getAll(),
         fetchStudents()
       ]);

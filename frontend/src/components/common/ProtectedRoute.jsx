@@ -5,10 +5,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { isAuthenticated, loading, role, mustChangePassword } = useAuth();
 
-  const hasToken = !!localStorage.getItem('token');
-  const authed = isAuthenticated || hasToken;
-
-  if (loading && !hasToken) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
         <div className="text-center">
@@ -18,7 +15,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     );
   }
 
-  if (!authed) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -30,7 +27,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
-    const redirectRole = role || (hasToken ? JSON.parse(localStorage.getItem('user') || '{}')?.role : null);
+    const redirectRole = role;
     if (redirectRole) {
       return <Navigate to={`/${redirectRole}/dashboard`} replace />;
     }

@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://adit.shahdhairyah.in/api';
+export const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,10 +19,15 @@ const api = axios.create({
  */
 const downloadApi = axios.create({
   baseURL: API_URL,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 const withAuthToken = (config) => {
+  // Let the browser supply multipart/form-data and its boundary for uploads.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -254,18 +260,25 @@ export const libraryAPI = {
 // EXAMS
 export const examAPI = {
   getStats: () => api.get('/exams/stats'),
+  getMetadata: () => api.get('/exams/metadata'),
   getSchedules: (params) => api.get('/exams/schedules', { params }),
   getScheduleById: (id) => api.get(`/exams/schedules/${id}`),
   createSchedule: (data) => api.post('/exams/schedules', data),
   updateSchedule: (id, data) => api.put(`/exams/schedules/${id}`, data),
   deleteSchedule: (id) => api.delete(`/exams/schedules/${id}`),
   getUnitTests: (params) => api.get('/exams/unit-tests', { params }),
-  getExternalMarksList: (params) => api.get('/exams/external-marks', { params }),
   enterInternalMarks: (data) => api.post('/exams/internal-marks', data),
+  updateInternalMarks: (id, data) => api.put(`/exams/internal-marks/${id}`, data),
+  deleteInternalMarks: (id) => api.delete(`/exams/internal-marks/${id}`),
+  getExternalMarksList: (params) => api.get('/exams/external-marks', { params }),
   enterExternalMarks: (data) => api.post('/exams/external-marks', data),
+  updateExternalMarks: (id, data) => api.put(`/exams/external-marks/${id}`, data),
+  deleteExternalMarks: (id) => api.delete(`/exams/external-marks/${id}`),
   getResults: (params) => api.get('/exams/results', { params }),
-  getHallTicket: (studentId) => api.get(`/exams/hall-ticket/${studentId}`),
+  calculateResult: (data) => api.post('/exams/calculate-result', data),
+  getGradeCard: (studentId, params) => api.get(`/exams/grade-card/${studentId}`, { params }),
   publishResults: (data) => api.post('/exams/publish-results', data),
+  getHallTicket: (studentId) => api.get(`/exams/hall-ticket/${studentId}`),
   getStudentMarks: (params) => api.get('/exams/student-marks', { params }),
   getPerformance: (params) => api.get('/exams/performance', { params }),
   getAnalytics: (subjectId) => api.get(`/exams/analytics/${subjectId}`),
@@ -298,6 +311,8 @@ export const adminAPI = {
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
   getSystemInfo: () => api.get('/admin/system-info'),
+  getReports: (params) => api.get('/admin/reports', { params }),
+  getReportSummary: () => api.get('/admin/reports/summary'),
 };
 
 // LEAVE APPLICATIONS

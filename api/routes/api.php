@@ -170,16 +170,24 @@ $routes = [
 
     // Exam routes
     'GET /exams/stats'                => ['ExamController', 'getExamStats', true, ['admin', 'faculty', 'hod']],
+    'GET /exams/metadata'             => ['ExamController', 'getExamMetadata', true, ['admin', 'faculty', 'hod']],
     'GET /exams/schedules'            => ['ExamController', 'getSchedules', true],
     'GET /exams/schedules/([^/]+)'    => ['ExamController', 'getScheduleById', true],
     'POST /exams/schedules'           => ['ExamController', 'createSchedule', true, ['admin']],
     'PUT /exams/schedules/([^/]+)'    => ['ExamController', 'updateSchedule', true, ['admin']],
     'DELETE /exams/schedules/([^/]+)' => ['ExamController', 'deleteSchedule', true, ['admin']],
     'GET /exams/unit-tests'           => ['ExamController', 'getUnitTestsList', true, ['admin', 'faculty', 'hod']],
-    'GET /exams/external-marks'       => ['ExamController', 'getExternalMarksList', true, ['admin', 'faculty', 'hod']],
     'POST /exams/internal-marks'      => ['ExamController', 'enterInternalMarks', true, ['faculty', 'admin']],
+    'PUT /exams/internal-marks/([^/]+)'=> ['ExamController', 'updateInternalMarks', true, ['faculty', 'admin']],
+    'DELETE /exams/internal-marks/([^/]+)'=> ['ExamController', 'deleteInternalMarks', true, ['faculty', 'admin']],
+    'GET /exams/external-marks'       => ['ExamController', 'getExternalMarksList', true, ['admin', 'faculty', 'hod']],
     'POST /exams/external-marks'      => ['ExamController', 'enterExternalMarks', true, ['admin', 'faculty']],
+    'PUT /exams/external-marks/([^/]+)'=> ['ExamController', 'updateExternalMarks', true, ['admin', 'faculty']],
+    'DELETE /exams/external-marks/([^/]+)'=> ['ExamController', 'deleteExternalMarks', true, ['admin', 'faculty']],
     'GET /exams/results'              => ['ExamController', 'getResults', true],
+    'POST /exams/calculate-result'    => ['ExamController', 'calculateResult', true, ['admin', 'faculty']],
+    'GET /exams/grade-card/([^/]+)'   => ['ExamController', 'getGradeCard', true, ['admin', 'faculty', 'hod', 'student']],
+    'GET /exams/grade-card'           => ['ExamController', 'getGradeCard', true, ['admin', 'faculty', 'hod', 'student']],
     'GET /exams/performance'          => ['ExamController', 'getClassPerformance', true, ['faculty', 'hod', 'admin']],
     'GET /exams/hall-ticket/([^/]+)'  => ['ExamController', 'getHallTicket', true, ['student', 'admin']],
     'POST /exams/publish-results'     => ['ExamController', 'publishResults', true, ['admin']],
@@ -277,6 +285,8 @@ $routes = [
     'PUT /admin/settings'          => ['AdminController', 'updateSettings', true, ['admin']],
     'GET /admin/backups'           => ['AdminController', 'getBackups', true, ['admin']],
     'GET /admin/system-info'       => ['AdminController', 'getSystemInfo', true, ['admin']],
+    'GET /admin/reports'           => ['AdminController', 'getReports', true, ['admin']],
+    'GET /admin/reports/summary'   => ['AdminController', 'getReportSummary', true, ['admin']],
 ];
 
 // Match the route

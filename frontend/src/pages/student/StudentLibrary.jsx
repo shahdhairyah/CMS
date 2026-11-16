@@ -18,7 +18,6 @@ export default function StudentLibrary() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeLoans, setActiveLoans] = useState([]);
   const [recentLoans, setRecentLoans] = useState([]);
-  const [finesList, setFinesList] = useState([]);
   const [totalFines, setTotalFines] = useState(0);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'my_loans' | 'history'
@@ -51,7 +50,6 @@ export default function StudentLibrary() {
         const data = loansRes.value.data || {};
         setActiveLoans(data.active || []);
         setRecentLoans(data.recent || []);
-        setFinesList(data.fines || []);
         setTotalFines(Number(data.total_fines || 0));
       }
 

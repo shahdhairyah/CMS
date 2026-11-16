@@ -203,20 +203,17 @@ class ExamController {
                     Response::error('No student profile is linked to this account', 404);
                 }
             } else {
-                $studentId = Validation::id($_GET['student_id'] ?? null);
-                if ($studentId === null) {
-                    Response::error('A valid student_id is required', 400);
-                }
-                // Without this, any logged-in faculty/hod could read any
-                // student's marks by appending ?student_id=N.
-                if (!RoleMiddleware::canAccessStudent($studentId)) {
+                $studentId = !empty($_GET['student_id']) ? Validation::id($_GET['student_id']) : null;
+                if ($studentId !== null && !RoleMiddleware::canAccessStudent($studentId)) {
                     Response::forbidden('You do not have permission to view this student\'s results');
                 }
             }
 
-            $semesterId = Validation::id($_GET['semester_id'] ?? null);
+            $semesterId = !empty($_GET['semester_id']) ? Validation::id($_GET['semester_id']) : null;
+            $departmentId = !empty($_GET['department_id']) ? Validation::id($_GET['department_id']) : null;
+            $status = !empty($_GET['status']) ? Validation::sanitize($_GET['status']) : null;
 
-            $results = $this->examModel->getResults($studentId, $semesterId);
+            $results = $this->examModel->getResults($studentId, $semesterId, $departmentId, $status);
             Response::success($results);
         } catch (Exception $e) {
             error_log("ExamController::getResults Error: " . $e->getMessage());
@@ -585,7 +582,11 @@ class ExamController {
         try {
             $studentId = !empty($_GET['student_id']) ? Validation::id($_GET['student_id']) : null;
             $subjectId = !empty($_GET['subject_id']) ? Validation::id($_GET['subject_id']) : null;
-            $marks = $this->examModel->getInternalMarks($studentId, $subjectId);
+            $semesterId = !empty($_GET['semester_id']) ? Validation::id($_GET['semester_id']) : null;
+            $departmentId = !empty($_GET['department_id']) ? Validation::id($_GET['department_id']) : null;
+            $testNumber = !empty($_GET['test_number']) ? Validation::id($_GET['test_number']) : null;
+
+            $marks = $this->examModel->getInternalMarks($studentId, $subjectId, $semesterId, $departmentId, $testNumber);
             Response::success($marks);
         } catch (Exception $e) {
             error_log("ExamController::getUnitTestsList Error: " . $e->getMessage());
@@ -593,15 +594,123 @@ class ExamController {
         }
     }
 
+    public function deleteInternalMarks($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid ID', 400);
+            }
+            $this->examModel->deleteInternalMarks($id);
+            Response::success(null, 'Internal marks deleted successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::deleteInternalMarks Error: " . $e->getMessage());
+            Response::serverError('Failed to delete internal marks');
+        }
+    }
+
     public function getExternalMarksList() {
         try {
             $studentId = !empty($_GET['student_id']) ? Validation::id($_GET['student_id']) : null;
             $subjectId = !empty($_GET['subject_id']) ? Validation::id($_GET['subject_id']) : null;
-            $marks = $this->examModel->getExternalMarks($studentId, $subjectId);
+            $semesterId = !empty($_GET['semester_id']) ? Validation::id($_GET['semester_id']) : null;
+            $departmentId = !empty($_GET['department_id']) ? Validation::id($_GET['department_id']) : null;
+
+            $marks = $this->examModel->getExternalMarks($studentId, $subjectId, $semesterId, $departmentId);
             Response::success($marks);
         } catch (Exception $e) {
             error_log("ExamController::getExternalMarksList Error: " . $e->getMessage());
             Response::serverError('Failed to load external marks');
+        }
+    }
+
+    public function updateExternalMarks($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid ID', 400);
+            }
+            $data = Validation::getJsonInput();
+            $this->examModel->updateExternalMarks($id, $data);
+            Response::success(null, 'External marks updated successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::updateExternalMarks Error: " . $e->getMessage());
+            Response::serverError('Failed to update external marks');
+        }
+    }
+
+    public function deleteExternalMarks($id) {
+        try {
+            $id = Validation::id($id);
+            if (!$id) {
+                Response::error('Invalid ID', 400);
+            }
+            $this->examModel->deleteExternalMarks($id);
+            Response::success(null, 'External marks deleted successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::deleteExternalMarks Error: " . $e->getMessage());
+            Response::serverError('Failed to delete external marks');
+        }
+    }
+
+    public function getGradeCard($studentId = null) {
+        try {
+            $role = AuthMiddleware::getUserRole();
+            $userId = AuthMiddleware::getUserId();
+
+            if ($role === 'student') {
+                $studentModel = new Student();
+                $student = $studentModel->findByUserId($userId);
+                $targetId = $student ? $student['id'] : null;
+            } else {
+                $targetId = Validation::id($studentId ?? $_GET['student_id'] ?? null);
+            }
+
+            if (!$targetId) {
+                Response::error('Student ID is required', 400);
+            }
+
+            $semesterId = !empty($_GET['semester_id']) ? Validation::id($_GET['semester_id']) : null;
+            $gradeCard = $this->examModel->getGradeCardDetails($targetId, $semesterId);
+
+            if (!$gradeCard) {
+                Response::notFound('Student or grade card records not found');
+            }
+
+            Response::success($gradeCard);
+        } catch (Exception $e) {
+            error_log("ExamController::getGradeCard Error: " . $e->getMessage());
+            Response::serverError('Failed to generate grade card');
+        }
+    }
+
+    public function calculateResult() {
+        try {
+            $data = Validation::getJsonInput();
+            $studentId = Validation::id($data['student_id'] ?? null);
+            $semesterId = Validation::id($data['semester_id'] ?? null);
+
+            if (!$studentId || !$semesterId) {
+                Response::validationError([
+                    'student_id' => 'Student ID is required',
+                    'semester_id' => 'Semester ID is required'
+                ]);
+            }
+
+            $res = $this->examModel->generateResults($studentId, $semesterId);
+            Response::success($res, 'Result calculated successfully');
+        } catch (Exception $e) {
+            error_log("ExamController::calculateResult Error: " . $e->getMessage());
+            Response::serverError('Failed to calculate result');
+        }
+    }
+
+    public function getExamMetadata() {
+        try {
+            $meta = $this->examModel->getExamMetadata();
+            Response::success($meta);
+        } catch (Exception $e) {
+            error_log("ExamController::getExamMetadata Error: " . $e->getMessage());
+            Response::serverError('Failed to load examination metadata');
         }
     }
 }

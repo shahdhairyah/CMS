@@ -14,7 +14,7 @@ export default function FacultyNotices() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '', type: 'College', audience: '' });
+  const [form, setForm] = useState({ title: '', content: '', type: 'college', target_audience: 'student' });
 
   useEffect(() => {
     fetchNotices();
@@ -24,7 +24,7 @@ export default function FacultyNotices() {
     try {
       setLoading(true);
       setError('');
-      const res = await noticeAPI.getAll({ faculty_id: user?.profile?.id });
+      const res = await noticeAPI.getAll();
       if (res.success) {
         setNotices(res.data || []);
       } else {
@@ -50,7 +50,7 @@ export default function FacultyNotices() {
       });
       if (res.success) {
         setShowCreate(false);
-        setForm({ title: '', content: '', type: 'College', audience: '' });
+        setForm({ title: '', content: '', type: 'college', target_audience: 'student' });
         fetchNotices();
       } else {
         setError(res.message || 'Failed to create notice');
@@ -105,27 +105,32 @@ export default function FacultyNotices() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="label">Title</label>
-              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" placeholder="Notice title" />
+              <input required maxLength={255} type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" placeholder="Notice title" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Type</label>
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="input-field">
-                  <option value="College">College</option>
-                  <option value="Department">Department</option>
-                  <option value="Academic">Academic</option>
-                  <option value="Event">Event</option>
-                  <option value="General">General</option>
+                  <option value="college">College</option>
+                  <option value="department">Department</option>
+                  <option value="exam">Exam</option>
+                  <option value="event">Event</option>
+                  <option value="general">General</option>
                 </select>
               </div>
               <div>
-                <label className="label">Target Audience (optional)</label>
-                <input type="text" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} className="input-field" placeholder="e.g. All Students, CE Dept" />
+                <label className="label">Target Audience</label>
+                <select value={form.target_audience} onChange={(e) => setForm({ ...form, target_audience: e.target.value })} className="input-field">
+                  {user?.role === 'admin' && <option value="all">Everyone</option>}
+                  <option value="student">Students</option>
+                  <option value="faculty">Faculty</option>
+                  <option value="staff">Staff</option>
+                </select>
               </div>
             </div>
             <div>
               <label className="label">Content</label>
-              <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={5} className="input-field resize-none" placeholder="Write notice content..." />
+              <textarea required value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={5} className="input-field resize-none" placeholder="Write notice content..." />
             </div>
             <div className="flex gap-3 justify-end">
               <button type="button" onClick={() => { setShowCreate(false); setError(''); }} className="btn-secondary">Cancel</button>
@@ -136,10 +141,10 @@ export default function FacultyNotices() {
       )}
 
       <div className="card">
-        <h3 className="text-base font-semibold text-white mb-5">Your Notices</h3>
+        <h3 className="text-base font-semibold text-white mb-5">Notice Board</h3>
 
         {notices.length === 0 ? (
-          <EmptyState title="No Notices" description="You haven't created any notices yet." />
+          <EmptyState title="No Notices" description="No notices are available." />
         ) : (
           <div className="space-y-3">
             {notices.map((notice) => (
@@ -154,29 +159,30 @@ export default function FacultyNotices() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                      notice.type === 'College'
+                      notice.type === 'college'
                         ? 'bg-accent/10 text-accent-light'
-                        : notice.type === 'Department'
+                        : notice.type === 'department'
                         ? 'bg-info/10 text-info'
                         : 'bg-surface-hover text-muted'
                     }`}>
                       {notice.type}
                     </span>
-                    <button
+                    {user?.role === 'admin' && <button
+                      aria-label="Delete notice"
                       onClick={() => handleDelete(notice.id)}
                       className="p-1 text-muted-dark hover:text-danger opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <XIcon size={14} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
                 <p className="text-xs text-muted line-clamp-2">{notice.content}</p>
                 <div className="flex items-center gap-3 mt-2 text-xs text-muted-dark">
                   <span className="flex items-center gap-1">
                     <CalendarIcon size={12} />
-                    {formatDate(notice.created_at || notice.date)}
+                    {formatDate(notice.published_at || notice.created_at)}
                   </span>
-                  {notice.audience && <span>Target: {notice.audience}</span>}
+                  {notice.target_audience && <span>Target: {notice.target_audience}</span>}
                 </div>
               </div>
             ))}

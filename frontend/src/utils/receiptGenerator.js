@@ -12,7 +12,6 @@ export async function generateReceiptPDF(receiptData) {
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
   const marginX = 22;
   const contentWidth = pageWidth - marginX * 2; // 166mm
 

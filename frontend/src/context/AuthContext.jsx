@@ -19,36 +19,35 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    if (savedUser && savedToken) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
+    let active = true;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    authAPI.me()
+      .then((res) => {
+        if (!active || localStorage.getItem('token') !== token) return;
+        if (!res?.success || !res.data) throw new Error('Invalid session');
+        const fresh = {
+          id: res.data.id,
+          email: res.data.email,
+          role: res.data.role,
+          profile: res.data.profile || null,
+          must_change_password: res.data.must_change_password === true,
+        };
+        localStorage.setItem('user', JSON.stringify(fresh));
+        setUser(fresh);
+      })
+      .catch(() => {
+        if (!active || localStorage.getItem('token') !== token) return;
         localStorage.removeItem('user');
         localStorage.removeItem('token');
         setUser(null);
-      }
-      authAPI.me()
-        .then((res) => {
-          if (res && res.success && res.data) {
-            const fresh = {
-              id: res.data.id,
-              email: res.data.email,
-              role: res.data.role,
-              profile: res.data.profile || null,
-              // Preserved across a reload: while it is true the API refuses
-              // everything except the password change, so the router has to
-              // keep sending the user to /change-password.
-              must_change_password: res.data.must_change_password === true,
-            };
-            localStorage.setItem('user', JSON.stringify(fresh));
-            setUser(fresh);
-          }
-        })
-        .catch(() => {});
-    }
-    setLoading(false);
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   const login = useCallback(async (email, password) => {

@@ -60,29 +60,49 @@ class Exam extends Database {
         return $row ?: null;
     }
 
-    public function getInternalMarks($studentId = null, $subjectId = null, $semester = null) {
+    public function deleteInternalMarks($id) {
+        $stmt = $this->db->prepare("DELETE FROM unit_tests WHERE id = ?");
+        return $stmt->execute([(int) $id]);
+    }
+
+    public function getInternalMarks($studentId = null, $subjectId = null, $semesterId = null, $departmentId = null, $testNumber = null) {
         $where = ['1=1'];
         $params = [];
 
         if ($studentId) {
             $where[] = 'ut.student_id = ?';
-            $params[] = $studentId;
+            $params[] = (int) $studentId;
         }
         if ($subjectId) {
             $where[] = 'ut.subject_id = ?';
-            $params[] = $subjectId;
+            $params[] = (int) $subjectId;
+        }
+        if ($semesterId) {
+            $where[] = 's.semester_id = ?';
+            $params[] = (int) $semesterId;
+        }
+        if ($departmentId) {
+            $where[] = 's.department_id = ?';
+            $params[] = (int) $departmentId;
+        }
+        if ($testNumber) {
+            $where[] = 'ut.test_number = ?';
+            $params[] = (int) $testNumber;
         }
 
         $whereClause = implode(' AND ', $where);
 
         $stmt = $this->db->prepare(
-            "SELECT ut.*, s.name as subject_name, s.code as subject_code,
-                    st.first_name, st.last_name, st.roll_number
+            "SELECT ut.*, s.name as subject_name, s.code as subject_code, s.credits,
+                    st.first_name, st.last_name, st.roll_number, st.semester as student_semester,
+                    d.name as department_name, sem.semester_number
              FROM unit_tests ut 
              JOIN subjects s ON ut.subject_id = s.id 
              JOIN students st ON ut.student_id = st.id 
+             LEFT JOIN departments d ON s.department_id = d.id
+             LEFT JOIN semesters sem ON s.semester_id = sem.id
              WHERE {$whereClause} 
-             ORDER BY st.roll_number, ut.test_number"
+             ORDER BY st.roll_number, ut.test_number, s.code"
         );
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -93,7 +113,7 @@ class Exam extends Database {
         $stmt = $this->db->prepare(
             "INSERT INTO external_marks (student_id, subject_id, marks_obtained, max_marks, entered_by) 
              VALUES (?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE marks_obtained = VALUES(marks_obtained), entered_by = VALUES(entered_by)"
+             ON DUPLICATE KEY UPDATE marks_obtained = VALUES(marks_obtained), max_marks = VALUES(max_marks), entered_by = VALUES(entered_by)"
         );
         $stmt->execute([
             $data['student_id'], $data['subject_id'],
@@ -103,26 +123,61 @@ class Exam extends Database {
         return true;
     }
 
-    public function getExternalMarks($studentId = null, $subjectId = null) {
+    public function updateExternalMarks($id, $data) {
+        $fields = [];
+        $params = [];
+        $allowed = ['student_id', 'subject_id', 'marks_obtained', 'max_marks', 'entered_by'];
+        foreach ($allowed as $key) {
+            if (array_key_exists($key, $data)) {
+                $fields[] = "`$key` = ?";
+                $params[] = $data[$key];
+            }
+        }
+        if (empty($fields)) return false;
+        $params[] = (int) $id;
+        $stmt = $this->db->prepare("UPDATE external_marks SET " . implode(', ', $fields) . " WHERE id = ?");
+        return $stmt->execute($params);
+    }
+
+    public function deleteExternalMarks($id) {
+        $stmt = $this->db->prepare("DELETE FROM external_marks WHERE id = ?");
+        return $stmt->execute([(int) $id]);
+    }
+
+    public function getExternalMarks($studentId = null, $subjectId = null, $semesterId = null, $departmentId = null) {
         $where = ['1=1'];
         $params = [];
 
         if ($studentId) {
             $where[] = 'em.student_id = ?';
-            $params[] = $studentId;
+            $params[] = (int) $studentId;
         }
         if ($subjectId) {
             $where[] = 'em.subject_id = ?';
-            $params[] = $subjectId;
+            $params[] = (int) $subjectId;
+        }
+        if ($semesterId) {
+            $where[] = 's.semester_id = ?';
+            $params[] = (int) $semesterId;
+        }
+        if ($departmentId) {
+            $where[] = 's.department_id = ?';
+            $params[] = (int) $departmentId;
         }
 
         $whereClause = implode(' AND ', $where);
 
         $stmt = $this->db->prepare(
-            "SELECT em.*, s.name as subject_name, s.code as subject_code
+            "SELECT em.*, s.name as subject_name, s.code as subject_code, s.credits,
+                    st.first_name, st.last_name, st.roll_number, st.semester as student_semester,
+                    d.name as department_name, sem.semester_number
              FROM external_marks em 
              JOIN subjects s ON em.subject_id = s.id 
-             WHERE {$whereClause}"
+             JOIN students st ON em.student_id = st.id
+             LEFT JOIN departments d ON s.department_id = d.id
+             LEFT JOIN semesters sem ON s.semester_id = sem.id
+             WHERE {$whereClause}
+             ORDER BY st.roll_number, s.code"
         );
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -263,33 +318,277 @@ class Exam extends Database {
         return 0;                           // F
     }
 
-    public function getResults($studentId = null, $semesterId = null) {
+    public function getResults($studentId = null, $semesterId = null, $departmentId = null, $status = null) {
         $where = ['1=1'];
         $params = [];
 
         if ($studentId) {
             $where[] = 'r.student_id = ?';
-            $params[] = $studentId;
+            $params[] = (int) $studentId;
         }
         if ($semesterId) {
             $where[] = 'r.semester_id = ?';
-            $params[] = $semesterId;
+            $params[] = (int) $semesterId;
+        }
+        if ($departmentId) {
+            $where[] = 'st.department_id = ?';
+            $params[] = (int) $departmentId;
+        }
+        if ($status) {
+            $where[] = 'r.status = ?';
+            $params[] = $status;
         }
 
         $whereClause = implode(' AND ', $where);
 
         $stmt = $this->db->prepare(
             "SELECT r.*, sem.semester_number, c.name as course_name,
-                    st.first_name, st.last_name, st.roll_number
+                    st.first_name, st.last_name, st.roll_number, st.batch,
+                    d.name as department_name
              FROM results r 
              JOIN semesters sem ON r.semester_id = sem.id 
              JOIN courses c ON sem.course_id = c.id 
              JOIN students st ON r.student_id = st.id 
+             LEFT JOIN departments d ON st.department_id = d.id
              WHERE {$whereClause} 
-             ORDER BY sem.semester_number"
+             ORDER BY sem.semester_number, st.roll_number"
         );
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    public function getGradeCardDetails($studentId, $semesterId = null) {
+        $studentId = (int) $studentId;
+        $stmt = $this->db->prepare(
+            "SELECT st.*, d.name as department_name, u.email
+             FROM students st
+             LEFT JOIN departments d ON st.department_id = d.id
+             LEFT JOIN users u ON st.user_id = u.id
+             WHERE st.id = ? LIMIT 1"
+        );
+        $stmt->execute([$studentId]);
+        $student = $stmt->fetch();
+        if (!$student) return null;
+
+        if (!$semesterId) {
+            // Pick latest semester result or student's semester
+            $stmt = $this->db->prepare("SELECT semester_id FROM results WHERE student_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$studentId]);
+            $latestRes = $stmt->fetch();
+            if ($latestRes && !empty($latestRes['semester_id'])) {
+                $semesterId = (int) $latestRes['semester_id'];
+            } else {
+                // Find a semester matching student's current semester number
+                $semNum = (int) ($student['semester'] ?? 1);
+                $stmt = $this->db->prepare(
+                    "SELECT sem.id FROM semesters sem
+                     JOIN courses c ON sem.course_id = c.id
+                     WHERE c.department_id = ? AND sem.semester_number = ? LIMIT 1"
+                );
+                $stmt->execute([(int) $student['department_id'], $semNum]);
+                $foundSem = $stmt->fetch();
+                $semesterId = $foundSem ? (int) $foundSem['id'] : 1;
+            }
+        }
+        $semesterId = (int) $semesterId;
+
+        // Get semester information
+        $stmt = $this->db->prepare(
+            "SELECT sem.*, c.name as course_name, c.code as course_code
+             FROM semesters sem
+             JOIN courses c ON sem.course_id = c.id
+             WHERE sem.id = ? LIMIT 1"
+        );
+        $stmt->execute([$semesterId]);
+        $semester = $stmt->fetch() ?: [
+            'id' => $semesterId,
+            'semester_number' => $student['semester'] ?? 1,
+            'course_name' => 'B.Tech Engineering'
+        ];
+
+        // Ensure results exist or generate them
+        $stmt = $this->db->prepare("SELECT * FROM results WHERE student_id = ? AND semester_id = ? LIMIT 1");
+        $stmt->execute([$studentId, $semesterId]);
+        $result = $stmt->fetch();
+        if (!$result) {
+            $this->generateResults($studentId, $semesterId);
+            $stmt->execute([$studentId, $semesterId]);
+            $result = $stmt->fetch();
+        }
+
+        // Fetch subjects for this semester (or department matching)
+        $stmt = $this->db->prepare(
+            "SELECT s.* FROM subjects s 
+             WHERE s.semester_id = ? AND (s.department_id = ? OR s.department_id IS NULL)
+             ORDER BY s.code"
+        );
+        $stmt->execute([$semesterId, (int) $student['department_id']]);
+        $subjects = $stmt->fetchAll();
+
+        if (empty($subjects)) {
+            // Fallback: all subjects for this semester
+            $stmt = $this->db->prepare("SELECT s.* FROM subjects s WHERE s.semester_id = ? ORDER BY s.code");
+            $stmt->execute([$semesterId]);
+            $subjects = $stmt->fetchAll();
+        }
+
+        $subjectRows = [];
+        $totalCreditsAttempted = 0;
+        $totalCreditsEarned = 0;
+        $totalGradePoints = 0;
+
+        foreach ($subjects as $sub) {
+            $subId = (int) $sub['id'];
+            $credits = (float) ($sub['credits'] ?? 3);
+            $totalCreditsAttempted += $credits;
+
+            // Unit tests (internal)
+            $stmt = $this->db->prepare(
+                "SELECT test_number, marks_obtained, max_marks FROM unit_tests
+                 WHERE student_id = ? AND subject_id = ? ORDER BY test_number"
+            );
+            $stmt->execute([$studentId, $subId]);
+            $tests = $stmt->fetchAll();
+
+            $internalObtained = 0.0;
+            $internalMax = 0.0;
+            if (count($tests) >= 2) {
+                $sorted = array_column($tests, 'marks_obtained');
+                rsort($sorted);
+                $internalObtained = (float) $sorted[0] + (float) $sorted[1];
+                $internalMax = ((float) ($tests[0]['max_marks'] ?? 30)) + ((float) ($tests[1]['max_marks'] ?? 30));
+            } elseif (count($tests) === 1) {
+                $internalObtained = (float) $tests[0]['marks_obtained'];
+                $internalMax = (float) ($tests[0]['max_marks'] ?? 30);
+            }
+
+            // External marks
+            $stmt = $this->db->prepare(
+                "SELECT marks_obtained, max_marks FROM external_marks
+                 WHERE student_id = ? AND subject_id = ? LIMIT 1"
+            );
+            $stmt->execute([$studentId, $subId]);
+            $ext = $stmt->fetch();
+            $externalObtained = $ext ? (float) $ext['marks_obtained'] : 0.0;
+            $externalMax = $ext ? (float) ($ext['max_marks'] ?? 100) : 100.0;
+
+            $totalObtained = $internalObtained + $externalObtained;
+            $totalMax = ($internalMax > 0 ? $internalMax : 30.0) + ($externalMax > 0 ? $externalMax : 100.0);
+            $percentage = $totalMax > 0 ? round(($totalObtained / $totalMax) * 100, 1) : 0.0;
+
+            $grade = 'F';
+            $gp = 0;
+            if ($percentage >= 90) { $grade = 'O'; $gp = 10; }
+            elseif ($percentage >= 80) { $grade = 'A+'; $gp = 9; }
+            elseif ($percentage >= 70) { $grade = 'A'; $gp = 8; }
+            elseif ($percentage >= 60) { $grade = 'B+'; $gp = 7; }
+            elseif ($percentage >= 50) { $grade = 'B'; $gp = 6; }
+            elseif ($percentage >= 40) { $grade = 'C'; $gp = 5; }
+
+            $creditsEarned = ($gp > 0) ? $credits : 0;
+            $totalCreditsEarned += $creditsEarned;
+            $totalGradePoints += ($gp * $credits);
+
+            $subjectRows[] = [
+                'subject_id' => $subId,
+                'name' => $sub['name'],
+                'code' => $sub['code'],
+                'credits' => $credits,
+                'type' => $sub['type'] ?? 'theory',
+                'internal_obtained' => $internalObtained,
+                'internal_max' => $internalMax > 0 ? $internalMax : 30,
+                'external_obtained' => $externalObtained,
+                'external_max' => $externalMax > 0 ? $externalMax : 100,
+                'total_obtained' => round($totalObtained, 2),
+                'total_max' => round($totalMax, 2),
+                'percentage' => $percentage,
+                'grade' => $grade,
+                'grade_point' => $gp,
+                'credits_earned' => $creditsEarned,
+                'tests' => $tests
+            ];
+        }
+
+        $calculatedSgpa = $totalCreditsAttempted > 0 ? round($totalGradePoints / $totalCreditsAttempted, 2) : 0;
+        $sgpa = $result ? (float) $result['sgpa'] : $calculatedSgpa;
+        $cgpa = $result ? (float) $result['cgpa'] : $calculatedSgpa;
+        $status = $result ? $result['status'] : ($sgpa >= 4.0 ? 'pass' : 'fail');
+
+        return [
+            'student' => [
+                'id' => $student['id'],
+                'first_name' => $student['first_name'],
+                'last_name' => $student['last_name'],
+                'roll_number' => $student['roll_number'],
+                'batch' => $student['batch'] ?? '2024-2028',
+                'department_name' => $student['department_name'] ?? 'Engineering',
+                'semester' => $semester['semester_number'] ?? $student['semester'],
+                'email' => $student['email'] ?? null,
+                'phone' => $student['phone'] ?? null,
+                'photo' => $student['photo'] ?? null,
+            ],
+            'semester' => [
+                'id' => $semesterId,
+                'semester_number' => $semester['semester_number'] ?? 1,
+                'course_name' => $semester['course_name'] ?? 'B.Tech',
+            ],
+            'result' => [
+                'id' => $result['id'] ?? null,
+                'sgpa' => $sgpa,
+                'cgpa' => $cgpa,
+                'total_credits' => $totalCreditsAttempted,
+                'earned_credits' => $totalCreditsEarned,
+                'total_grade_points' => round($totalGradePoints, 2),
+                'status' => $status,
+                'published_at' => $result['published_at'] ?? null,
+                'generated_at' => date('Y-m-d H:i:s')
+            ],
+            'subjects' => $subjectRows
+        ];
+    }
+
+    public function getExamMetadata() {
+        // Departments
+        $stmt = $this->db->query("SELECT id, name, code FROM departments ORDER BY name");
+        $departments = $stmt->fetchAll();
+
+        // Semesters with course & department
+        $stmt = $this->db->query(
+            "SELECT sem.id, sem.semester_number, sem.course_id, c.name as course_name, c.department_id, d.name as department_name
+             FROM semesters sem
+             JOIN courses c ON sem.course_id = c.id
+             LEFT JOIN departments d ON c.department_id = d.id
+             ORDER BY sem.course_id, sem.semester_number"
+        );
+        $semesters = $stmt->fetchAll();
+
+        // Subjects
+        $stmt = $this->db->query(
+            "SELECT s.id, s.name, s.code, s.semester_id, s.department_id, s.credits, s.type,
+                    d.name as department_name, sem.semester_number
+             FROM subjects s
+             LEFT JOIN departments d ON s.department_id = d.id
+             LEFT JOIN semesters sem ON s.semester_id = sem.id
+             ORDER BY s.code"
+        );
+        $subjects = $stmt->fetchAll();
+
+        // Students (id, roll_number, name, semester, department_id)
+        $stmt = $this->db->query(
+            "SELECT st.id, st.roll_number, st.first_name, st.last_name, st.semester, st.department_id,
+                    d.name as department_name
+             FROM students st
+             LEFT JOIN departments d ON st.department_id = d.id
+             ORDER BY st.roll_number ASC"
+        );
+        $students = $stmt->fetchAll();
+
+        return [
+            'departments' => $departments,
+            'semesters' => $semesters,
+            'subjects' => $subjects,
+            'students' => $students
+        ];
     }
 
     public function getPerformanceAnalytics($subjectId) {

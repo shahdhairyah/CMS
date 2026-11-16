@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/common/PageHeader';
 import StudentIDCard from '../../components/common/StudentIDCard';
-import { authAPI, studentAPI } from '../../services/api';
+import { API_URL, authAPI, studentAPI } from '../../services/api';
 import { LockIcon, IdCardIcon, CameraIcon, CheckIcon, XIcon } from '../../utils/icons';
 import { getInitials } from '../../utils/helpers';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://adit.shahdhairyah.in/api';
 function getPhotoUrl(photo) {
   if (!photo) return null;
   if (photo.startsWith('http')) return photo;
