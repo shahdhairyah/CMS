@@ -138,13 +138,18 @@ export default function StudentLabManualList() {
 
                   <div className="flex items-center justify-between text-xs text-muted-dark mb-3">
                     <span>Due: {formatDate(manual.due_date || manual.deadline)}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(status)}`}>
-                      {status === 'pending' ? 'Not Submitted' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${sub?.marks !== null ? 'bg-success/10 text-success' : 'bg-surface-hover text-muted'}`}>
+                      {sub?.marks !== null ? 'Evaluated & Autosigned' : 'Pending Evaluation'}
                     </span>
                   </div>
 
                   {sub?.marks !== null && sub?.marks !== undefined && (
-                    <p className="text-xs text-muted mb-3">Marks: <span className="text-white font-medium">{sub.marks}/{manual.max_marks || 100}</span></p>
+                    <div className="flex items-center justify-between text-xs p-2 bg-surface-raised rounded-lg mb-3">
+                      <span className="text-muted">Marks: <span className="text-white font-semibold">{sub.marks}/{manual.max_marks || 100}</span></span>
+                      {sub.signed_at && (
+                        <span className="text-success text-[11px] font-medium">Signed: {formatDate(sub.signed_at)}</span>
+                      )}
+                    </div>
                   )}
 
                   <button

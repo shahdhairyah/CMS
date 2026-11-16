@@ -67,8 +67,8 @@ export default function StudentLabManualStatus() {
   });
 
   const total = manuals.length;
-  const submitted = manuals.filter((m) => m.submission).length;
-  const reviewed = manuals.filter((m) => m.submission?.status === 'reviewed' || m.submission?.status === 'graded').length;
+  const evaluated = manuals.filter((m) => m.submission?.marks !== null && m.submission?.marks !== undefined).length;
+  const pending = total - evaluated;
   const totalMarks = manuals.reduce((sum, m) => sum + (m.submission?.marks !== null && m.submission?.marks !== undefined ? Number(m.submission.marks) : 0), 0);
   const totalMaxMarks = manuals.reduce((sum, m) => sum + (m.submission?.marks !== null && m.submission?.marks !== undefined ? Number(m.max_marks || 100) : 0), 0);
 
@@ -76,17 +76,16 @@ export default function StudentLabManualStatus() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Lab Manual Status" subtitle="Track your lab manual progress across subjects" />
+      <PageHeader title="Lab Manual Status" subtitle="Track teacher evaluations and autosigned lab marks across subjects" />
 
       {error && (
         <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl text-sm">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <StatCard icon={<BookOpen size={22} />} label="Total Lab Manuals" value={total} color="primary" />
-        <StatCard icon={<CheckIcon size={22} />} label="Submitted" value={submitted} color="success" />
-        <StatCard icon={<ClockIcon size={22} />} label="Pending" value={total - submitted} color="warning" />
-        <StatCard icon={<BookOpen size={22} />} label="Reviewed" value={reviewed} color="info" />
+        <StatCard icon={<CheckIcon size={22} />} label="Evaluated & Autosigned" value={evaluated} color="success" />
+        <StatCard icon={<ClockIcon size={22} />} label="Awaiting Evaluation" value={pending} color="warning" />
       </div>
 
       <div className="card">
@@ -103,28 +102,30 @@ export default function StudentLabManualStatus() {
               <thead>
                 <tr className="border-b border-surface-border text-muted text-xs uppercase tracking-wider">
                   <th className="text-left py-3 pr-4">Subject</th>
-                  <th className="text-center py-3 pr-4">Total</th>
-                  <th className="text-center py-3 pr-4">Submitted</th>
+                  <th className="text-center py-3 pr-4">Total Experiments</th>
+                  <th className="text-center py-3 pr-4">Evaluated</th>
                   <th className="text-center py-3 pr-4">Pending</th>
-                  <th className="text-center py-3 pr-4">Reviewed</th>
+                  <th className="text-center py-3 pr-4">Autosigned Status</th>
                   <th className="text-center py-3">Marks</th>
                 </tr>
               </thead>
               <tbody>
                 {subjectEntries.map(([subject, data]) => {
-                  const pending = data.total - data.submitted;
+                  const pending = data.total - (data.reviewed || data.submitted);
                   return (
                     <tr key={subject} className="border-b border-surface-border/50 last:border-0">
                       <td className="py-3.5 pr-4 text-muted-light font-medium">{subject}</td>
                       <td className="py-3.5 pr-4 text-center text-muted">{data.total}</td>
                       <td className="py-3.5 pr-4 text-center">
-                        <span className="text-success">{data.submitted}</span>
+                        <span className="text-success font-semibold">{data.reviewed || data.submitted}</span>
                       </td>
                       <td className="py-3.5 pr-4 text-center">
-                        <span className={pending > 0 ? 'text-warning' : 'text-muted-dark'}>{pending}</span>
+                        <span className={pending > 0 ? 'text-warning' : 'text-muted-dark'}>{Math.max(0, pending)}</span>
                       </td>
                       <td className="py-3.5 pr-4 text-center">
-                        <span className={data.reviewed > 0 ? 'text-info' : 'text-muted-dark'}>{data.reviewed}</span>
+                        <span className={(data.reviewed || data.submitted) > 0 ? 'text-success bg-success/10 px-2 py-0.5 rounded text-xs' : 'text-muted-dark'}>
+                          {(data.reviewed || data.submitted) > 0 ? 'Autosigned' : 'Awaiting'}
+                        </span>
                       </td>
                       <td className="py-3.5 text-center">
                         {data.maxMarks > 0 ? (

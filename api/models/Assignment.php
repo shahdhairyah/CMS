@@ -153,9 +153,11 @@ class Assignment extends Database {
 
     public function getSubmissions($assignmentId) {
         $stmt = $this->db->prepare(
-            "SELECT sub.*, s.first_name, s.last_name, s.roll_number
+            "SELECT sub.*, s.first_name, s.last_name, s.roll_number,
+                    CONCAT(f.first_name, ' ', f.last_name) as reviewed_by_name
              FROM submissions sub 
              JOIN students s ON sub.student_id = s.id 
+             LEFT JOIN faculty f ON sub.reviewed_by = f.id
              WHERE sub.assignment_id = ? 
              ORDER BY sub.submitted_at DESC"
         );
@@ -180,8 +182,10 @@ class Assignment extends Database {
         // Building the SET clause conditionally means an admin review no longer
         // clobbers an existing reviewer with NULL, and reviewed_by_user records
         // the actor for every role.
-        $set = ['marks = ?', 'feedback = ?', 'status = ?'];
-        $params = [$data['marks'], $data['feedback'] ?? null, $data['status']];
+        // Auto-sign date on teacher marks entry:
+        $signedAt = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+        $set = ['marks = ?', 'feedback = ?', 'status = ?', 'signed_at = ?'];
+        $params = [$data['marks'], $data['feedback'] ?? null, $data['status'], $signedAt];
 
         if (array_key_exists('reviewed_by', $data)) {
             $set[] = 'reviewed_by = ?';
@@ -199,13 +203,40 @@ class Assignment extends Database {
         return $stmt->execute($params);
     }
 
+    public function recordMarks($assignmentId, $studentId, $data) {
+        $signedAt = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+        $status = $data['status'] ?? 'accepted';
+        $marks = $data['marks'] ?? 0;
+        $feedback = $data['feedback'] ?? null;
+        $reviewedBy = $data['reviewed_by'] ?? null;
+        $reviewedByUser = $data['reviewed_by_user'] ?? null;
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO submissions (assignment_id, student_id, marks, feedback, status, reviewed_by, reviewed_by_user, signed_at, submitted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE 
+                 marks = VALUES(marks),
+                 feedback = VALUES(feedback),
+                 status = VALUES(status),
+                 reviewed_by = VALUES(reviewed_by),
+                 reviewed_by_user = VALUES(reviewed_by_user),
+                 signed_at = VALUES(signed_at)"
+        );
+        return $stmt->execute([
+            (int)$assignmentId, (int)$studentId, $marks, $feedback, $status,
+            $reviewedBy, $reviewedByUser, $signedAt
+        ]);
+    }
+
     public function getStudentSubmissions($studentId) {
         $stmt = $this->db->prepare(
             "SELECT sub.*, a.title as assignment_title, a.deadline, a.max_marks,
-                    s.name as subject_name
+                    s.name as subject_name,
+                    CONCAT(f.first_name, ' ', f.last_name) as reviewed_by_name
              FROM submissions sub 
              JOIN assignments a ON sub.assignment_id = a.id 
              JOIN subjects s ON a.subject_id = s.id 
+             LEFT JOIN faculty f ON sub.reviewed_by = f.id
              WHERE sub.student_id = ? 
              ORDER BY sub.submitted_at DESC"
         );

@@ -118,99 +118,51 @@ export default function StudentLabManualDetail() {
             </div>
           )}
 
-          {submission ? (
+          {submission && submission.marks !== null ? (
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">Your Submission</h3>
-              <div className="p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <DownloadIcon size={18} className="text-accent-light" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-light">{submission.file_name || 'Submitted file'}</p>
-                      <p className="text-xs text-muted">Submitted {formatDate(submission.submitted_at)}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
-                    {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
-                  </span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-success"></span>
+                  <h3 className="text-base font-semibold text-white">Lab Manual Evaluation & Signature</h3>
                 </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
+                  {(submission.status || 'accepted').charAt(0).toUpperCase() + (submission.status || 'accepted').slice(1)}
+                </span>
+              </div>
 
-                {submission.file_url && (
-                  <a
-                    href={submission.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-accent-light hover:text-accent mt-3"
-                  >
-                    <DownloadIcon size={12} />
-                    Download submission file
-                  </a>
+              <div className="grid grid-cols-2 gap-4 p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
+                <div>
+                  <p className="text-xs text-muted mb-1">Marks</p>
+                  <p className="text-xl font-bold text-success">{submission.marks} / {manual.max_marks || 100}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">Teacher Auto-Sign Date</p>
+                  <p className="text-sm font-semibold text-white">
+                    {submission.signed_at ? formatDate(submission.signed_at) : (submission.submitted_at ? formatDate(submission.submitted_at) : 'Signed')}
+                  </p>
+                </div>
+                {submission.reviewed_by_name && (
+                  <div className="col-span-2 text-xs text-muted">
+                    Signed by: <span className="text-muted-light font-medium">{submission.reviewed_by_name}</span>
+                  </div>
                 )}
-
-                {submission.marks !== null && submission.marks !== undefined && (
-                  <div className="mt-4 pt-4 border-t border-surface-border">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted">Marks</p>
-                        <p className="text-lg font-bold text-white">{submission.marks}/{manual.max_marks || 100}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Status</p>
-                        <p className={`text-sm font-medium ${submission.status === 'reviewed' || submission.status === 'graded' ? 'text-success' : 'text-warning'}`}>
-                          {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
-                        </p>
-                      </div>
-                    </div>
-                    {submission.feedback && (
-                      <div className="mt-3 pt-3 border-t border-surface-border">
-                        <p className="text-xs text-muted mb-1">Feedback</p>
-                        <p className="text-sm text-muted-light">{submission.feedback}</p>
-                      </div>
-                    )}
+                {submission.feedback && (
+                  <div className="col-span-2 pt-2 border-t border-surface-border text-xs">
+                    <p className="text-muted mb-0.5">Teacher Feedback:</p>
+                    <p className="text-muted-light">{submission.feedback}</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">Submit Lab Manual</h3>
-              {!isOverdue ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="border-2 border-dashed border-surface-border rounded-xl p-8 text-center hover:border-accent/30 transition-colors cursor-pointer group">
-                    <input type="file" id="file" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
-                    <label htmlFor="file" className="cursor-pointer flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-surface-overlay group-hover:bg-accent/10 flex items-center justify-center transition-colors">
-                        <UploadIcon size={24} className="text-muted-dark group-hover:text-accent-light transition-colors" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-light">{file ? file.name : 'Click or drag to upload your file'}</p>
-                        {file ? (
-                          <span className="text-xs text-muted">{(file.size / 1024).toFixed(1)} KB</span>
-                        ) : (
-                          <span className="text-xs text-muted-dark">PDF, DOC, ZIP up to 10MB</span>
-                        )}
-                      </div>
-                    </label>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!file || submitting}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {submitting ? 'Submitting...' : 'Submit Lab Manual'}
-                  </button>
-                </form>
-              ) : (
-                <div className="flex items-center gap-3 p-4 bg-danger/10 border border-danger/20 rounded-xl">
-                  <XIcon size={18} className="text-danger flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-danger">Deadline Passed</p>
-                    <p className="text-xs text-danger/80 mt-0.5">The due date ({formatDate(dueDate)}) has passed. Submission is closed.</p>
-                  </div>
-                </div>
-              )}
+            <div className="card text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-accent/10 text-accent-light flex items-center justify-center mx-auto mb-3">
+                <BookOpen size={24} />
+              </div>
+              <h3 className="text-base font-semibold text-white">Manual Evaluation by Faculty</h3>
+              <p className="text-xs text-muted mt-2 max-w-md mx-auto">
+                No upload is required by the student. The lab instructor creates experiments and records grades directly. As soon as your teacher enters your marks, the verified mark and autosigned date will appear here.
+              </p>
             </div>
           )}
         </div>

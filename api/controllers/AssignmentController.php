@@ -244,8 +244,69 @@ class AssignmentController {
                 }
             }
 
-            $submissions = $this->assignmentModel->getSubmissions($assignmentId);
-            Response::success($submissions);
+            // Fetch subject class students so faculty sees every enrolled student,
+            // not only those who manually uploaded a file!
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare(
+                "SELECT st.id as student_id, st.roll_number, st.first_name, st.last_name,
+                        st.department_id, st.semester
+                 FROM subjects sub
+                 INNER JOIN students st
+                     ON st.department_id = sub.department_id
+                    AND st.semester = (SELECT sem.semester_number FROM semesters sem WHERE sem.id = sub.semester_id)
+                 WHERE sub.id = ?
+                 ORDER BY st.roll_number ASC"
+            );
+            $stmt->execute([(int)$assignment['subject_id']]);
+            $students = $stmt->fetchAll();
+
+            $existingSubmissions = $this->assignmentModel->getSubmissions($assignmentId);
+            $subMap = [];
+            foreach ($existingSubmissions as $s) {
+                $subMap[$s['student_id']] = $s;
+            }
+
+            // Build full class roster with submission or pending record
+            $result = [];
+            foreach ($students as $st) {
+                if (isset($subMap[$st['student_id']])) {
+                    $result[] = $subMap[$st['student_id']];
+                } else {
+                    $result[] = [
+                        'id' => null,
+                        'assignment_id' => (int)$assignmentId,
+                        'student_id' => (int)$st['student_id'],
+                        'student_name' => $st['first_name'] . ' ' . $st['last_name'],
+                        'first_name' => $st['first_name'],
+                        'last_name' => $st['last_name'],
+                        'roll_number' => $st['roll_number'],
+                        'file_path' => null,
+                        'submitted_at' => null,
+                        'marks' => null,
+                        'feedback' => null,
+                        'status' => 'pending',
+                        'signed_at' => null,
+                        'reviewed_by' => null,
+                        'reviewed_by_name' => null
+                    ];
+                }
+            }
+
+            // In case there are submissions from students whose semester advanced
+            foreach ($existingSubmissions as $s) {
+                $found = false;
+                foreach ($result as $r) {
+                    if ($r['student_id'] == $s['student_id']) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (!$found) {
+                    $result[] = $s;
+                }
+            }
+
+            Response::success($result);
         } catch (Exception $e) {
             error_log("AssignmentController::submissions Error: " . $e->getMessage());
             Response::serverError('Failed to load submissions');
@@ -317,6 +378,9 @@ class AssignmentController {
             if ($facultyId !== null) {
                 $data['reviewed_by'] = $facultyId;
             }
+            if (empty($data['signed_at'])) {
+                $data['signed_at'] = date('Y-m-d H:i:s');
+            }
 
             $result = $this->assignmentModel->reviewSubmission($submissionId, $data);
             
@@ -328,6 +392,49 @@ class AssignmentController {
         } catch (Exception $e) {
             error_log("AssignmentController::reviewSubmission Error: " . $e->getMessage());
             Response::serverError('Failed to review submission');
+        }
+    }
+
+    public function recordMarks($assignmentId) {
+        try {
+            $assignmentId = Validation::id($assignmentId);
+            if (!$assignmentId) {
+                Response::error('Invalid assignment ID', 400);
+            }
+            $this->assertCanManage($assignmentId);
+
+            $data = Validation::getJsonInput();
+            $studentId = Validation::id($data['student_id'] ?? null);
+            if (!$studentId) {
+                Response::error('Student ID is required', 400);
+            }
+            if (!RoleMiddleware::canAccessStudent($studentId)) {
+                Response::forbidden('You do not have permission to grade this student');
+            }
+
+            $marks = isset($data['marks']) ? (float)$data['marks'] : null;
+            if ($marks === null || $marks < 0 || $marks > 1000) {
+                Response::error('Valid marks required (0 - 1000)', 400);
+            }
+
+            $userId = AuthMiddleware::getUserId();
+            $facultyId = Faculty::facultyIdForUser($userId);
+            $data['reviewed_by_user'] = $userId;
+            if ($facultyId !== null) {
+                $data['reviewed_by'] = $facultyId;
+            }
+            $data['status'] = $data['status'] ?? 'accepted';
+            $data['signed_at'] = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+
+            $res = $this->assignmentModel->recordMarks($assignmentId, $studentId, $data);
+            if (!$res) {
+                Response::serverError('Failed to record assignment marks');
+            }
+
+            Response::success(['signed_at' => $data['signed_at']], 'Marks recorded and autosigned successfully');
+        } catch (Exception $e) {
+            error_log("AssignmentController::recordMarks Error: " . $e->getMessage());
+            Response::serverError('Failed to record marks');
         }
     }
 

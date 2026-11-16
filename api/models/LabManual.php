@@ -104,9 +104,11 @@ class LabManual extends Database {
 
     public function getSubmissions($labManualId) {
         $stmt = $this->db->prepare(
-            "SELECT ls.*, s.first_name, s.last_name, s.roll_number
+            "SELECT ls.*, s.first_name, s.last_name, s.roll_number,
+                    CONCAT(f.first_name, ' ', f.last_name) as reviewed_by_name
              FROM lab_submissions ls 
              JOIN students s ON ls.student_id = s.id 
+             LEFT JOIN faculty f ON ls.reviewed_by = f.id
              WHERE ls.lab_manual_id = ? 
              ORDER BY ls.submitted_at DESC"
         );
@@ -163,8 +165,9 @@ class LabManual extends Database {
         // Building the SET clause conditionally means an admin review no longer
         // clobbers an existing reviewer with NULL, and reviewed_by_user records
         // the actor for every role.
-        $set = ['marks = ?', 'feedback = ?', 'status = ?'];
-        $params = [$data['marks'], $data['feedback'] ?? null, $data['status']];
+        $signedAt = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+        $set = ['marks = ?', 'feedback = ?', 'status = ?', 'signed_at = ?'];
+        $params = [$data['marks'], $data['feedback'] ?? null, $data['status'], $signedAt];
 
         if (array_key_exists('reviewed_by', $data)) {
             $set[] = 'reviewed_by = ?';
@@ -182,12 +185,39 @@ class LabManual extends Database {
         return $stmt->execute($params);
     }
 
+    public function recordMarks($labManualId, $studentId, $data) {
+        $signedAt = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+        $status = $data['status'] ?? 'accepted';
+        $marks = $data['marks'] ?? 0;
+        $feedback = $data['feedback'] ?? null;
+        $reviewedBy = $data['reviewed_by'] ?? null;
+        $reviewedByUser = $data['reviewed_by_user'] ?? null;
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO lab_submissions (lab_manual_id, student_id, marks, feedback, status, reviewed_by, reviewed_by_user, signed_at, submitted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE 
+                 marks = VALUES(marks),
+                 feedback = VALUES(feedback),
+                 status = VALUES(status),
+                 reviewed_by = VALUES(reviewed_by),
+                 reviewed_by_user = VALUES(reviewed_by_user),
+                 signed_at = VALUES(signed_at)"
+        );
+        return $stmt->execute([
+            (int)$labManualId, (int)$studentId, $marks, $feedback, $status,
+            $reviewedBy, $reviewedByUser, $signedAt
+        ]);
+    }
+
     public function getStudentSubmissions($studentId) {
         $stmt = $this->db->prepare(
-            "SELECT ls.*, lm.title as lab_title, lm.experiment_number, s.name as subject_name
+            "SELECT ls.*, lm.title as lab_title, lm.experiment_number, s.name as subject_name,
+                    CONCAT(f.first_name, ' ', f.last_name) as reviewed_by_name
              FROM lab_submissions ls 
              JOIN lab_manuals lm ON ls.lab_manual_id = lm.id 
              JOIN subjects s ON lm.subject_id = s.id 
+             LEFT JOIN faculty f ON ls.reviewed_by = f.id
              WHERE ls.student_id = ? 
              ORDER BY ls.submitted_at DESC"
         );

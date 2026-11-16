@@ -298,4 +298,11 @@ $run("CREATE TABLE IF NOT EXISTS exam_schedules (
     INDEX idx_semester_type (semester_id, exam_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+// ---------------------------------------------------------------------------
+// 6. Submissions & Lab Submissions Evaluation / Auto-Sign Columns
+// ---------------------------------------------------------------------------
+$log("\n6. Ensure signed_at / evaluated_at on submissions & lab_submissions");
+$addColumn('submissions', 'signed_at', 'DATETIME NULL');
+$addColumn('lab_submissions', 'signed_at', 'DATETIME NULL');
+
 $log("\nDone." . ($dryRun ? ' (dry run)' : ''));

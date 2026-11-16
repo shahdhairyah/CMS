@@ -131,14 +131,25 @@ export default function FacultyAssignments() {
     }
   };
 
-  const handleReview = async (submissionId) => {
+  const handleReview = async (item) => {
     try {
       setReviewing(true);
       setError('');
-      const res = await assignmentAPI.reviewSubmission(submissionId, reviewForm);
+      let res;
+      if (item.id) {
+        res = await assignmentAPI.reviewSubmission(item.id, reviewForm);
+      } else {
+        res = await assignmentAPI.recordMarks(showSubmissions.id, {
+          student_id: item.student_id,
+          marks: reviewForm.marks,
+          feedback: reviewForm.feedback,
+          status: reviewForm.status,
+        });
+      }
       if (res.success) {
         setShowReview(null);
         setReviewForm({ marks: '', feedback: '', status: 'accepted' });
+        setSuccessMsg('Marks saved and autosigned with current date!');
         if (showSubmissions) fetchSubmissions(showSubmissions.id);
         fetchAssignments();
       } else {
@@ -333,13 +344,13 @@ export default function FacultyAssignments() {
                 <EmptyState title="No Submissions Yet" description="No students have submitted this assignment." />
               ) : (
                 <div className="space-y-2">
-                  {submissions.map((sub) => {
+                  {submissions.map((sub, idx) => {
                     const deadline = new Date(showSubmissions.deadline);
                     const submittedDate = new Date(sub.submitted_at);
                     const isLate = !isNaN(deadline) && !isNaN(submittedDate) && submittedDate > deadline;
                     const grade = getGrade(sub.marks, showSubmissions.max_marks);
                     return (
-                      <div key={sub.id} className="flex items-center justify-between p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
+                      <div key={sub.id || `st-${sub.student_id}-${idx}`} className="flex items-center justify-between p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-sm font-medium text-accent-light">
                             {(sub.student_name || 'S')[0]}
@@ -347,14 +358,23 @@ export default function FacultyAssignments() {
                           <div>
                             <p className="text-sm font-medium text-muted-light flex items-center gap-2">
                               {sub.student_name || sub.name}
+                              <span className="text-xs text-muted font-normal">({sub.roll_number})</span>
                               {isLate && <span className="text-[10px] text-danger bg-danger/10 px-1.5 py-0.5 rounded">Late</span>}
                             </p>
-                            <p className="text-xs text-muted">{formatDateTime(sub.submitted_at)}</p>
+                            <p className="text-xs text-muted">
+                              {sub.signed_at ? (
+                                <span className="text-success font-medium">Autosigned: {formatDate(sub.signed_at)}</span>
+                              ) : sub.submitted_at ? (
+                                formatDateTime(sub.submitted_at)
+                              ) : (
+                                <span className="text-muted-dark">Not submitted</span>
+                              )}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${sub.status === 'submitted' ? 'text-warning bg-warning/10' : sub.status === 'accepted' ? 'text-success bg-success/10' : 'text-danger bg-danger/10'}`}>
-                            {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${sub.status === 'submitted' ? 'text-warning bg-warning/10' : sub.status === 'accepted' ? 'text-success bg-success/10' : sub.status === 'rejected' ? 'text-danger bg-danger/10' : 'text-muted bg-surface-overlay border border-surface-border'}`}>
+                            {sub.status === 'pending' && !sub.marks ? 'Pending' : sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                           </span>
                           {sub.file_url && (
                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-muted-dark hover:text-accent-light transition-colors" title="Download submission">
@@ -364,14 +384,12 @@ export default function FacultyAssignments() {
                           {grade && (
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${gradeColor[grade]}`}>{grade}</span>
                           )}
-                          {sub.status === 'submitted' && (
-                            <button
-                              onClick={() => { setShowReview(sub); setReviewForm({ marks: sub.marks || '', feedback: sub.feedback || '', status: sub.status || 'accepted' }); }}
-                              className="px-3 py-1.5 bg-accent/10 text-accent-light rounded-lg text-xs font-medium hover:bg-accent/20 transition-colors"
-                            >
-                              Review
-                            </button>
-                          )}
+                          <button
+                            onClick={() => { setShowReview(sub); setReviewForm({ marks: sub.marks !== null && sub.marks !== undefined ? sub.marks : '', feedback: sub.feedback || '', status: sub.status === 'rejected' ? 'rejected' : 'accepted' }); }}
+                            className="px-3 py-1.5 bg-accent/10 text-accent-light rounded-lg text-xs font-medium hover:bg-accent/20 transition-colors"
+                          >
+                            {sub.marks !== null && sub.marks !== undefined ? 'Edit Marks' : 'Enter Marks'}
+                          </button>
                           {sub.marks !== null && sub.marks !== undefined && (
                             <span className="text-xs text-white font-medium">{sub.marks}/{showSubmissions.max_marks || 100}</span>
                           )}
@@ -394,7 +412,7 @@ export default function FacultyAssignments() {
               <p className="text-sm text-muted mb-1">{showReview.student_name || showReview.name}</p>
               {showReview.submitted_at && <p className="text-xs text-muted-dark mb-5">Submitted: {formatDateTime(showReview.submitted_at)}</p>}
 
-              <form onSubmit={(e) => { e.preventDefault(); handleReview(showReview.id); }} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleReview(showReview); }} className="space-y-4">
                 <div>
                   <label className="label">Marks / {showSubmissions?.max_marks || 100}</label>
                   <input type="number" value={reviewForm.marks} onChange={(e) => setReviewForm({ ...reviewForm, marks: e.target.value })} className="input-field" min={0} max={showSubmissions?.max_marks || 100} placeholder="Enter marks" />

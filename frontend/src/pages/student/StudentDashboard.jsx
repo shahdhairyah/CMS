@@ -47,6 +47,7 @@ export default function StudentDashboard() {
         resultsRes,
         noticesRes,
         leavesRes,
+        labManualsRes,
         labSubRes,
         feesRes,
       ] = await Promise.allSettled([
@@ -56,6 +57,7 @@ export default function StudentDashboard() {
         examAPI.getResults({ student_id: studentId }).catch(() => ({ success: false, data: [] })),
         noticeAPI.getStudent().catch(() => ({ success: false, data: [] })),
         leaveAPI.getAll({ student_id: studentId }).catch(() => ({ success: false, data: [] })),
+        labManualAPI.getAll().catch(() => ({ success: false, data: [] })),
         labManualAPI.getStudentSubmissions().catch(() => ({ success: false, data: [] })),
         feeAPI.getPayments(studentId).catch(() => ({ success: false, data: [] })),
       ]);
@@ -74,7 +76,8 @@ export default function StudentDashboard() {
 
       // Assignments
       const assignments = assignRes.status === 'fulfilled' ? (assignRes.value.data || []) : [];
-      const pending = assignments.filter(a => !a.submission || a.submission.status === 'pending').length;
+      const evaluatedAssignments = assignments.filter(a => a.submission && a.submission.marks !== null).length;
+      const pendingAssignments = Math.max(0, assignments.length - evaluatedAssignments);
       const upcoming = assignments
         .filter(a => a.deadline && new Date(a.deadline) > new Date())
         .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
@@ -92,9 +95,13 @@ export default function StudentDashboard() {
       const leaves = leavesRes.status === 'fulfilled' ? (leavesRes.value.data || []) : [];
       const pendingLeaves = leaves.filter(l => l.status === 'pending').length;
 
-      // Lab submissions
+      // Lab manuals & teacher evaluations
+      const labManuals = labManualsRes.status === 'fulfilled' ? (labManualsRes.value.data || []) : [];
       const labSubs = labSubRes.status === 'fulfilled' ? (labSubRes.value.data || []) : [];
-      const pendingLabs = labSubs.filter(s => !s.status || s.status === 'pending').length;
+      const labSubMap = {};
+      labSubs.forEach(s => { labSubMap[s.lab_manual_id] = s; });
+      const evaluatedLabs = labManuals.filter(m => (m.submission?.marks !== null && m.submission?.marks !== undefined) || (labSubMap[m.id]?.marks !== null && labSubMap[m.id]?.marks !== undefined)).length;
+      const pendingLabs = Math.max(0, labManuals.length - evaluatedLabs);
 
       // Fees
       const feesRaw = feesRes.status === 'fulfilled' ? (feesRes.value.data || {}) : {};
@@ -106,12 +113,16 @@ export default function StudentDashboard() {
         totalClasses,
         present: presentCount,
         absent: absentCount,
-        pendingAssignments: pending,
+        pendingAssignments: pendingAssignments,
         sgpa: latestResult?.sgpa || 0,
         cgpa: latestResult?.cgpa || 0,
         pendingFees: pendingFeeAmount,
         pendingLeaves,
         labSubmissions: pendingLabs,
+        totalAssignments: assignments.length,
+        evaluatedAssignments,
+        totalLabs: labManuals.length,
+        evaluatedLabs,
       });
       setUpcomingAssignments(upcoming);
     } catch (err) {
@@ -145,10 +156,10 @@ export default function StudentDashboard() {
         />
         <StatCard
           icon={<AssignmentIcon size={22} />}
-          label="Pending Assignments"
-          value={stats.pendingAssignments}
+          label="Assignments"
+          value={stats.evaluatedAssignments !== undefined ? `${stats.evaluatedAssignments}/${stats.totalAssignments || 0}` : stats.pendingAssignments}
           color="info"
-          subtext="Require submission"
+          subtext={stats.pendingAssignments > 0 ? `${stats.pendingAssignments} pending evaluation` : 'All evaluated & signed'}
           onClick={() => window.location.href = '/student/assignments'}
         />
         <StatCard

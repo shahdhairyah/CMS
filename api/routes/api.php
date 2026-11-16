@@ -131,6 +131,7 @@ $routes = [
     'DELETE /assignments/([^/]+)'  => ['AssignmentController', 'destroy', true, ['faculty', 'admin']],
     'POST /assignments/([^/]+)/submit' => ['AssignmentController', 'submit', true, ['student']],
     'GET /assignments/([^/]+)/submissions' => ['AssignmentController', 'submissions', true, ['faculty', 'admin']],
+    'POST /assignments/([^/]+)/marks'       => ['AssignmentController', 'recordMarks', true, ['faculty', 'admin']],
     'GET /assignments/submissions/([^/]+)' => ['AssignmentController', 'studentSubmissions', true],
     'PUT /assignments/submissions/([^/]+)/review' => ['AssignmentController', 'reviewSubmission', true, ['faculty', 'admin']],
 
@@ -219,6 +220,7 @@ $routes = [
     'DELETE /lab-manuals/([^/]+)'              => ['LabManualController', 'destroy', true, ['faculty', 'admin']],
     'POST /lab-manuals/([^/]+)/submit'         => ['LabManualController', 'submit', true, ['student']],
     'GET /lab-manuals/([^/]+)/submissions'     => ['LabManualController', 'submissions', true, ['faculty', 'admin']],
+    'POST /lab-manuals/([^/]+)/marks'          => ['LabManualController', 'recordMarks', true, ['faculty', 'admin']],
     'PUT /lab-manuals/submissions/([^/]+)/review' => ['LabManualController', 'reviewSubmission', true, ['faculty', 'admin']],
 
     // Study Material routes

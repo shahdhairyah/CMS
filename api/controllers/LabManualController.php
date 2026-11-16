@@ -37,6 +37,19 @@ class LabManualController {
                     (new Student())->getSubjects($student['id']),
                     'id'
                 );
+                $labManuals = $this->labManualModel->getAll($filters);
+
+                $submissions = $this->labManualModel->getStudentSubmissions($student['id']);
+                $submissionMap = [];
+                foreach ($submissions as $sub) {
+                    $submissionMap[$sub['lab_manual_id']] = $sub;
+                }
+                foreach ($labManuals as &$manual) {
+                    $manual['submission'] = $submissionMap[$manual['id']] ?? null;
+                }
+
+                Response::success($labManuals);
+                return;
             } elseif ($role === 'hod') {
                 $deptId = RoleMiddleware::scopeDepartmentId();
                 if ($deptId === null || $deptId < 1) {
@@ -194,9 +207,68 @@ class LabManualController {
         try {
             // Only the teacher who owns the manual, their HOD, or an admin.
             $this->assertCanManage($labManualId);
+            $labManual = $this->labManualModel->getById($labManualId);
 
-            $submissions = $this->labManualModel->getSubmissions($labManualId);
-            Response::success($submissions);
+            // Fetch subject class students so faculty sees every enrolled student
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare(
+                "SELECT st.id as student_id, st.roll_number, st.first_name, st.last_name,
+                        st.department_id, st.semester
+                 FROM subjects sub
+                 INNER JOIN students st
+                     ON st.department_id = sub.department_id
+                    AND st.semester = (SELECT sem.semester_number FROM semesters sem WHERE sem.id = sub.semester_id)
+                 WHERE sub.id = ?
+                 ORDER BY st.roll_number ASC"
+            );
+            $stmt->execute([(int)$labManual['subject_id']]);
+            $students = $stmt->fetchAll();
+
+            $existingSubmissions = $this->labManualModel->getSubmissions($labManualId);
+            $subMap = [];
+            foreach ($existingSubmissions as $s) {
+                $subMap[$s['student_id']] = $s;
+            }
+
+            $result = [];
+            foreach ($students as $st) {
+                if (isset($subMap[$st['student_id']])) {
+                    $result[] = $subMap[$st['student_id']];
+                } else {
+                    $result[] = [
+                        'id' => null,
+                        'lab_manual_id' => (int)$labManualId,
+                        'student_id' => (int)$st['student_id'],
+                        'student_name' => $st['first_name'] . ' ' . $st['last_name'],
+                        'first_name' => $st['first_name'],
+                        'last_name' => $st['last_name'],
+                        'roll_number' => $st['roll_number'],
+                        'file_path' => null,
+                        'submitted_at' => null,
+                        'marks' => null,
+                        'feedback' => null,
+                        'status' => 'pending',
+                        'signed_at' => null,
+                        'reviewed_by' => null,
+                        'reviewed_by_name' => null
+                    ];
+                }
+            }
+
+            foreach ($existingSubmissions as $s) {
+                $found = false;
+                foreach ($result as $r) {
+                    if ($r['student_id'] == $s['student_id']) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (!$found) {
+                    $result[] = $s;
+                }
+            }
+
+            Response::success($result);
         } catch (Exception $e) {
             error_log("LabManualController::submissions Error: " . $e->getMessage());
             Response::serverError('Failed to load submissions');
@@ -252,6 +324,9 @@ class LabManualController {
             if ($facultyId !== null) {
                 $data['reviewed_by'] = $facultyId;
             }
+            if (empty($data['signed_at'])) {
+                $data['signed_at'] = date('Y-m-d H:i:s');
+            }
 
             $result = $this->labManualModel->reviewSubmission($submissionId, $data);
             
@@ -263,6 +338,49 @@ class LabManualController {
         } catch (Exception $e) {
             error_log("LabManualController::reviewSubmission Error: " . $e->getMessage());
             Response::serverError('Failed to review submission');
+        }
+    }
+
+    public function recordMarks($labManualId) {
+        try {
+            $labManualId = Validation::id($labManualId);
+            if (!$labManualId) {
+                Response::error('Invalid lab manual ID', 400);
+            }
+            $this->assertCanManage($labManualId);
+
+            $data = Validation::getJsonInput();
+            $studentId = Validation::id($data['student_id'] ?? null);
+            if (!$studentId) {
+                Response::error('Student ID is required', 400);
+            }
+            if (!RoleMiddleware::canAccessStudent($studentId)) {
+                Response::forbidden('You do not have permission to grade this student');
+            }
+
+            $marks = isset($data['marks']) ? (float)$data['marks'] : null;
+            if ($marks === null || $marks < 0 || $marks > 1000) {
+                Response::error('Valid marks required (0 - 1000)', 400);
+            }
+
+            $userId = AuthMiddleware::getUserId();
+            $facultyId = Faculty::facultyIdForUser($userId);
+            $data['reviewed_by_user'] = $userId;
+            if ($facultyId !== null) {
+                $data['reviewed_by'] = $facultyId;
+            }
+            $data['status'] = $data['status'] ?? 'accepted';
+            $data['signed_at'] = !empty($data['signed_at']) ? $data['signed_at'] : date('Y-m-d H:i:s');
+
+            $res = $this->labManualModel->recordMarks($labManualId, $studentId, $data);
+            if (!$res) {
+                Response::serverError('Failed to record lab marks');
+            }
+
+            Response::success(['signed_at' => $data['signed_at']], 'Lab marks recorded and autosigned successfully');
+        } catch (Exception $e) {
+            error_log("LabManualController::recordMarks Error: " . $e->getMessage());
+            Response::serverError('Failed to record lab marks');
         }
     }
 

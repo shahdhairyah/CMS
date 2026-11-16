@@ -110,13 +110,32 @@ export default function FacultyLabManuals() {
     }
   };
 
-  const handleReview = async (submissionId) => {
+  const [editingSubId, setEditingSubId] = useState(null);
+
+  const handleReview = async (item, customStatus = null) => {
     try {
       setReviewing(true);
       setError('');
-      const res = await labManualAPI.reviewSubmission(submissionId, subForm);
+      const statusToUse = customStatus || subForm.status || 'accepted';
+      let res;
+      if (item.id) {
+        res = await labManualAPI.reviewSubmission(item.id, {
+          marks: subForm.marks,
+          feedback: subForm.feedback,
+          status: statusToUse,
+        });
+      } else {
+        res = await labManualAPI.recordMarks(showSubmissions.id, {
+          student_id: item.student_id,
+          marks: subForm.marks,
+          feedback: subForm.feedback,
+          status: statusToUse,
+        });
+      }
+
       if (res.success) {
         setSubForm({ marks: '', feedback: '', status: 'accepted' });
+        setEditingSubId(null);
         if (showSubmissions) fetchSubmissions(showSubmissions.id);
       } else {
         setError(res.message || 'Failed to review submission');
@@ -265,16 +284,29 @@ export default function FacultyLabManuals() {
                 <EmptyState title="No Submissions" description="No students have submitted this lab manual yet." />
               ) : (
                 <div className="space-y-2">
-                  {submissions.map((sub) => (
-                    <div key={sub.id} className="p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
+                  {submissions.map((sub, idx) => {
+                    const isEditing = editingSubId === (sub.id || `st-${sub.student_id}`);
+                    return (
+                    <div key={sub.id || `st-${sub.student_id}-${idx}`} className="p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-sm font-medium text-accent-light">
                             {(sub.student_name || 'S')[0]}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-muted-light">{sub.student_name || sub.name}</p>
-                            <p className="text-xs text-muted">{formatDateTime(sub.submitted_at)}</p>
+                            <p className="text-sm font-medium text-muted-light">
+                              {sub.student_name || sub.name}
+                              <span className="text-xs text-muted font-normal ml-2">({sub.roll_number})</span>
+                            </p>
+                            <p className="text-xs text-muted">
+                              {sub.signed_at ? (
+                                <span className="text-success font-medium">Autosigned: {formatDate(sub.signed_at)}</span>
+                              ) : sub.submitted_at ? (
+                                formatDateTime(sub.submitted_at)
+                              ) : (
+                                <span className="text-muted-dark">Not submitted</span>
+                              )}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -287,7 +319,7 @@ export default function FacultyLabManuals() {
                         </div>
                       </div>
                       <div className="border-t border-surface-border/30 pt-3">
-                        {sub.status === 'submitted' || sub.status === 'pending' ? (
+                        {isEditing || (!sub.marks && sub.status === 'pending') ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                               <label className="label text-xs">Marks</label>
@@ -312,27 +344,36 @@ export default function FacultyLabManuals() {
                             </div>
                             <div className="md:col-span-2 flex gap-2">
                               <button
-                                onClick={() => { setSubForm({ ...subForm, status: 'accepted' }); handleReview(sub.id); }}
+                                onClick={() => handleReview(sub, 'accepted')}
                                 disabled={reviewing}
                                 className="flex-1 py-2 bg-success/10 text-success rounded-lg text-xs font-medium hover:bg-success/20 transition-colors flex items-center justify-center gap-1.5"
                               >
                                 <CheckIcon size={14} />
-                                Accept
+                                Accept & Autosign
                               </button>
                               <button
-                                onClick={() => { setSubForm({ ...subForm, status: 'rejected' }); handleReview(sub.id); }}
+                                onClick={() => handleReview(sub, 'rejected')}
                                 disabled={reviewing}
                                 className="flex-1 py-2 bg-danger/10 text-danger rounded-lg text-xs font-medium hover:bg-danger/20 transition-colors flex items-center justify-center gap-1.5"
                               >
                                 <XIcon size={14} />
                                 Reject
                               </button>
+                              {isEditing && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSubId(null)}
+                                  className="px-3 py-2 bg-surface-overlay text-muted hover:text-white rounded-lg text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </div>
                           </div>
                         ) : (
                           <div className="flex items-center justify-between">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                              sub.status === 'accepted' ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
+                              sub.status === 'accepted' ? 'text-success bg-success/10' : sub.status === 'rejected' ? 'text-danger bg-danger/10' : 'text-muted bg-surface-overlay'
                             }`}>
                               {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                             </span>
@@ -342,11 +383,21 @@ export default function FacultyLabManuals() {
                             {sub.feedback && (
                               <span className="text-xs text-muted">Feedback: {sub.feedback}</span>
                             )}
+                            <button
+                              onClick={() => {
+                                setEditingSubId(sub.id || `st-${sub.student_id}`);
+                                setSubForm({ marks: sub.marks ?? '', feedback: sub.feedback || '', status: sub.status || 'accepted' });
+                              }}
+                              className="px-2.5 py-1 text-xs text-accent-light hover:bg-accent/10 rounded transition-colors"
+                            >
+                              Edit Marks
+                            </button>
                           </div>
                         )}
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>

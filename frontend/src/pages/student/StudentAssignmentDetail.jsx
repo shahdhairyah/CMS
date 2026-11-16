@@ -124,64 +124,51 @@ export default function StudentAssignmentDetail() {
             </div>
           )}
 
-          {sub ? (
+          {sub && sub.marks !== null ? (
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">Your Submission</h3>
-              <div className="flex items-center justify-between p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                    <DownloadIcon size={18} className="text-accent-light" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-light">{sub.file_path || 'Submitted file'}</p>
-                    <p className="text-xs text-muted">Submitted {formatDate(sub.submitted_at)}</p>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-success"></span>
+                  <h3 className="text-base font-semibold text-white">Evaluation & Signature Status</h3>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(sub.status)}`}>
-                  {(sub.status || 'pending').charAt(0).toUpperCase() + (sub.status || 'pending').slice(1)}
+                  {(sub.status || 'accepted').charAt(0).toUpperCase() + (sub.status || 'accepted').slice(1)}
                 </span>
               </div>
 
-              {sub.marks !== null && sub.marks !== undefined && (
-                <div className="mt-4 p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
-                  <p className="text-sm text-muted mb-2">Marks: <span className="text-white font-semibold">{sub.marks}/{assignment.max_marks || 100}</span></p>
-                  {sub.feedback && <p className="text-sm text-muted">Feedback: {sub.feedback}</p>}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-surface-overlay rounded-xl border border-surface-border/50">
+                <div>
+                  <p className="text-xs text-muted mb-1">Marks Obtained</p>
+                  <p className="text-xl font-bold text-success">{sub.marks} / {assignment.max_marks || 100}</p>
                 </div>
-              )}
-            </div>
-          ) : !isOverdue ? (
-            <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">Submit Assignment</h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="border-2 border-dashed border-surface-border rounded-xl p-6 text-center hover:border-accent/30 transition-colors">
-                  <input
-                    type="file"
-                    id="submitFile"
-                    className="hidden"
-                    onChange={(e) => setFile(e.target.files[0])}
-                  />
-                  <label htmlFor="submitFile" className="cursor-pointer flex flex-col items-center gap-2">
-                    <UploadIcon size={24} className="text-muted-dark" />
-                    <span className="text-sm text-muted-light">
-                      {file ? file.name : 'Click to upload your file'}
-                    </span>
-                    {file && (
-                      <span className="text-xs text-muted">{(file.size / 1024).toFixed(1)} KB</span>
-                    )}
-                  </label>
+                <div>
+                  <p className="text-xs text-muted mb-1">Teacher Auto-Sign Date</p>
+                  <p className="text-sm font-semibold text-white">
+                    {sub.signed_at ? formatDate(sub.signed_at) : (sub.submitted_at ? formatDate(sub.submitted_at) : 'Signed')}
+                  </p>
                 </div>
-                <button
-                  type="submit"
-                  disabled={!file || submitting}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? 'Submitting...' : 'Submit Assignment'}
-                </button>
-              </form>
+                {sub.reviewed_by_name && (
+                  <div className="col-span-2 text-xs text-muted">
+                    Signed by: <span className="text-muted-light font-medium">{sub.reviewed_by_name}</span>
+                  </div>
+                )}
+                {sub.feedback && (
+                  <div className="col-span-2 pt-2 border-t border-surface-border text-xs">
+                    <span className="text-muted block">Feedback:</span>
+                    <span className="text-muted-light">{sub.feedback}</span>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl text-sm">
-              Deadline has passed. Submission is closed.
+            <div className="card text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-warning/10 text-warning flex items-center justify-center mx-auto mb-3">
+                <AssignmentIcon size={24} />
+              </div>
+              <h3 className="text-base font-semibold text-white">Teacher Evaluation Pending</h3>
+              <p className="text-xs text-muted mt-2 max-w-md mx-auto">
+                No student upload is required. Your course faculty enters your assessment marks directly. Once entered, marks and the official autosigned validation date will be shown here.
+              </p>
             </div>
           )}
         </div>

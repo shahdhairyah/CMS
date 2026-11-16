@@ -221,6 +221,7 @@ export const assignmentAPI = {
   delete: (id) => api.delete(`/assignments/${id}`),
   submit: (id, formData) => api.post(`/assignments/${id}/submit`, formData),
   getSubmissions: (id) => api.get(`/assignments/${id}/submissions`),
+  recordMarks: (id, data) => api.post(`/assignments/${id}/marks`, data),
   reviewSubmission: (id, data) => api.put(`/assignments/submissions/${id}/review`, data),
 };
 
@@ -330,6 +331,7 @@ export const labManualAPI = {
   delete: (id) => api.delete(`/lab-manuals/${id}`),
   submit: (id, formData) => api.post(`/lab-manuals/${id}/submit`, formData),
   getSubmissions: (id) => api.get(`/lab-manuals/${id}/submissions`),
+  recordMarks: (id, data) => api.post(`/lab-manuals/${id}/marks`, data),
   reviewSubmission: (id, data) => api.put(`/lab-manuals/submissions/${id}/review`, data),
   getStudentSubmissions: () => api.get('/lab-manuals/student-submissions'),
 };
